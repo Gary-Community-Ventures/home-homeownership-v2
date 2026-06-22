@@ -31,18 +31,6 @@ type Resource = {
   description: string;
 };
 
-type EligibilityValue = "yes" | "no" | "unsure";
-
-type EligibilityAnswers = {
-  firstTimeBuyer: EligibilityValue;
-  firstGenerationBuyer: EligibilityValue;
-  disabilityEligible: EligibilityValue;
-  veteranEligible: EligibilityValue;
-  localRequirement: EligibilityValue;
-  ownFundsContribution: EligibilityValue;
-  buyerEducation: EligibilityValue;
-};
-
 type AssistanceProgram = {
   id: string;
   title: string;
@@ -55,27 +43,6 @@ type AssistanceProgram = {
 };
 
 const STORAGE_KEY = "home-buying-prototype-answers";
-const ELIGIBILITY_STORAGE_KEY = "home-buying-prototype-eligibility";
-
-const initialEligibilityAnswers: EligibilityAnswers = {
-  firstTimeBuyer: "unsure",
-  firstGenerationBuyer: "unsure",
-  disabilityEligible: "unsure",
-  veteranEligible: "unsure",
-  localRequirement: "unsure",
-  ownFundsContribution: "unsure",
-  buyerEducation: "unsure",
-};
-
-const eligibilityQuestions: { key: keyof EligibilityAnswers; label: string; description: string }[] = [
-  { key: "firstTimeBuyer", label: "First-time buyer", description: "You have not owned a home recently, usually within the last 3 years." },
-  { key: "firstGenerationBuyer", label: "First-generation buyer", description: "Your parents/guardians have not owned a home, depending on program rules." },
-  { key: "disabilityEligible", label: "Disability eligibility", description: "You or a qualifying household member has disability documentation." },
-  { key: "veteranEligible", label: "Veteran eligibility", description: "You may qualify for veteran-specific exceptions or programs." },
-  { key: "localRequirement", label: "Local area/workforce fit", description: "You live, work, or are buying in a required city, county, or community." },
-  { key: "ownFundsContribution", label: "Required own funds", description: "You can bring the program’s minimum borrower contribution from allowed sources." },
-  { key: "buyerEducation", label: "Buyer education", description: "You can complete required counseling or homebuyer education before closing." },
-];
 
 const downPaymentAssistancePrograms: AssistanceProgram[] = [
   {
@@ -1000,10 +967,7 @@ function RentVsBuyGraph({ result }: { result: ReturnType<typeof calculateScore> 
   const buyWidth = `${Math.max(6, (fiveYearBuyingCost / maxCost) * 100)}%`;
 
   return (
-    <div className="space-y-4">
-      <EligibilityQuestionnaire eligibility={eligibility} onChange={onEligibilityChange} />
-
-      <div className="space-y-4 rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
+    <div className="space-y-4 rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
       <div>
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Five-year cost estimate</p>
         <h3 className="mt-1 text-xl font-black tracking-tight">Rent vs. buy comparison</h3>
@@ -1099,7 +1063,10 @@ function DownPaymentAssistanceList({
   const filteredPrograms = downPaymentAssistancePrograms.filter((program) => programMatchesCounty(program, countyName));
 
   return (
-    <div className="space-y-4 rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
+    <div className="space-y-4">
+      <EligibilityQuestionnaire eligibility={eligibility} onChange={onEligibilityChange} />
+
+      <div className="space-y-4 rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
       <div>
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Down payment help</p>
         <h3 className="mt-1 text-xl font-black tracking-tight">Choose an assistance option</h3>
