@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, ChevronsUpDown, RotateCcw } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronsUpDown, ExternalLink, RotateCcw, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 type Answers = {
-  location: string;
-  income: number;
+  location: string[];
+  income: number | "";
+  householdSize: number;
   bedrooms: number;
   creditScore: number;
   assistanceProgram: string;
@@ -29,6 +30,17 @@ type Question = {
 type Resource = {
   title: string;
   description: string;
+  url: string;
+};
+
+type EligibilityValue = "yes" | "no" | "unsure";
+
+type EligibilityAnswers = {
+  firstTimeBuyer: EligibilityValue;
+  firstGenerationBuyer: EligibilityValue;
+  disabilityEligible: EligibilityValue;
+  veteranEligible: EligibilityValue;
+  localRequirement: EligibilityValue;
 };
 
 type AssistanceProgram = {
@@ -43,6 +55,23 @@ type AssistanceProgram = {
 };
 
 const STORAGE_KEY = "home-buying-prototype-answers";
+const ELIGIBILITY_STORAGE_KEY = "home-buying-prototype-eligibility";
+
+const initialEligibilityAnswers: EligibilityAnswers = {
+  firstTimeBuyer: "unsure",
+  firstGenerationBuyer: "unsure",
+  disabilityEligible: "unsure",
+  veteranEligible: "unsure",
+  localRequirement: "unsure",
+};
+
+const eligibilityQuestions: { key: keyof EligibilityAnswers; label: string; description: string }[] = [
+  { key: "firstTimeBuyer", label: "First-time buyer", description: "You have not owned a home recently, usually within the last 3 years." },
+  { key: "firstGenerationBuyer", label: "First-generation buyer", description: "Your parents/guardians have not owned a home, depending on program rules." },
+  { key: "disabilityEligible", label: "Disability eligibility", description: "You or a qualifying household member has disability documentation." },
+  { key: "veteranEligible", label: "Veteran eligibility", description: "You may qualify for veteran-specific exceptions or programs." },
+  { key: "localRequirement", label: "Local area/workforce fit", description: "You live, work, or are buying in a required city, county, or community." },
+];
 
 const downPaymentAssistancePrograms: AssistanceProgram[] = [
   {
@@ -351,9 +380,48 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
   },
 ];
 
+const assistanceProgramLinks: Record<string, string> = {
+  none: "https://www.consumerfinance.gov/owning-a-home/",
+  "chfa-firststep-plus": "https://www.chfainfo.com/homeownership/down-payment-assistance",
+  "chfa-smartstep-plus": "https://www.chfainfo.com/homeownership/down-payment-assistance",
+  "chfa-firstgeneration": "https://www.chfainfo.com/homeownership/homebuyer-programs/firstgeneration",
+  "chfa-homeaccess": "https://www.chfainfo.com/homeownership/homebuyer-programs/homeaccess",
+  "chac-immediate": "https://www.chaconline.org/",
+  "chac-deferral": "https://www.chaconline.org/",
+  "chac-disability": "https://www.chaconline.org/",
+  "metro-dpa": "https://www.metrodpa.org/",
+  "aurora-prop-123": "https://www.auroragov.org/residents/housing_and_community_services/homeownership_assistance",
+  "pikes-peak-dpa": "https://www.elpasoco.com/economic-development/community-development/homebuyer-assistance/",
+  "boulder-county-bcdpap": "https://www.longmontcolorado.gov/departments/departments-a-d/community-and-neighborhood-resources/housing/homeownership-programs/down-payment-assistance",
+  "boulder-h2o": "https://bouldercolorado.gov/services/homeownership-programs",
+  "boulder-middle-income": "https://bouldercolorado.gov/services/homeownership-programs",
+  "boulder-solution-grant": "https://bouldercolorado.gov/services/homeownership-programs",
+  "colorado-roots": "https://www.impactdf.org/colorado-roots-dpa-fund/",
+  "broomfield-chac": "https://broomfield.org/384/Housing-Programs",
+  "firstbank-idf": "https://www.impactdf.org/down-payment-assistance/",
+  "dearfield-fund": "https://dearfieldfund.com/",
+  "eagle-eclf-shared": "https://eaglecounty.us/departments___services/housing/eagle_county_loan_fund.php",
+  "eagle-eclf-amortized": "https://eaglecounty.us/departments___services/housing/eagle_county_loan_fund.php",
+  "eagle-ecdoh": "https://eaglecounty.us/departments___services/housing/homebuyer_assistance.php",
+  "eagle-ranch-erhc": "https://eagleranchhousing.com/",
+  "chfa-sectioneight-plus": "https://www.chfainfo.com/homeownership/homebuyer-programs/sectioneight-homeownership-plus",
+  "good-neighbor-next-door": "https://www.hud.gov/program_offices/housing/sfh/reo/goodn/gnndabot",
+  "colorado-hfa1-plus": "https://www.chfainfo.com/homeownership/down-payment-assistance",
+  "chenoa-fund-fha": "https://chenoafund.org/",
+  "chfa-vlip": "https://www.chfainfo.com/homeownership/down-payment-assistance",
+  "douglas-dchp": "https://douglascountyhousingpartnership.org/",
+  "noco-equity-share": "https://nocohousingnow.org/down-payment-assistance/",
+  "estes-valley": "https://www.estes.org/housing",
+  "greeley-ghope": "https://greeleygov.com/services/housing/g-hope",
+  "summit-srlf": "https://www.summithousing.us/programs/revolving-loan-fund/",
+  "eagle-ehop": "https://eaglecounty.us/departments___services/housing/employee_home_ownership_program.php",
+  "yampa-valley": "https://yampavalleyha.org/",
+};
+
 const initialAnswers: Answers = {
-  location: "",
-  income: 95000,
+  location: [],
+  income: "",
+  householdSize: 2,
   bedrooms: 3,
   creditScore: 720,
   assistanceProgram: "none",
@@ -383,7 +451,7 @@ const questions: Question[] = [
     title: "How many bedrooms do you need?",
     description: "Compare monthly rent against the estimated mortgage for each home size, then choose the bedroom count that fits your household.",
     type: "number",
-    min: 0,
+    min: 1,
     max: 8,
     step: 1,
     suffix: "bedrooms",
@@ -409,32 +477,46 @@ const questions: Question[] = [
 
 type StepRoute = {
   step: number;
+  showIntro: boolean;
   showExplanation: boolean;
+  showSummary: boolean;
 };
 
 function getQuestionStepName(question: Question) {
   return question.key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 }
 
-function getStepName(step: number, showExplanation: boolean) {
+function getStepName(step: number, showIntro: boolean, showExplanation: boolean, showSummary: boolean) {
+  if (showIntro) return "what-this-is";
+  if (showSummary) return "summary-next-steps";
+
   const boundedStep = Math.max(0, Math.min(questions.length - 1, step));
   const questionName = getQuestionStepName(questions[boundedStep]);
   return showExplanation ? `${questionName}-impact` : questionName;
 }
 
 function getRouteFromStepName(stepName: string | null): StepRoute {
-  if (stepName === "down-payment-assistance") {
-    return { step: questions.length - 1, showExplanation: false };
+  const normalizedStepName = stepName?.trim().toLowerCase() ?? "";
+
+  if (!normalizedStepName || normalizedStepName === "what-this-is" || normalizedStepName === "intro") {
+    return { step: 0, showIntro: true, showExplanation: false, showSummary: false };
   }
 
-  const normalizedStepName = stepName?.trim().toLowerCase() ?? "";
+  if (normalizedStepName === "summary-next-steps" || normalizedStepName === "summary") {
+    return { step: questions.length - 1, showIntro: false, showExplanation: true, showSummary: true };
+  }
+
+  if (normalizedStepName === "down-payment-assistance") {
+    return { step: questions.length - 1, showIntro: false, showExplanation: false, showSummary: false };
+  }
+
   const isImpactStep = normalizedStepName.endsWith("-impact");
   const questionName = isImpactStep ? normalizedStepName.slice(0, -"-impact".length) : normalizedStepName;
   const questionIndex = questions.findIndex((question) => getQuestionStepName(question) === questionName);
 
-  if (questionIndex === -1) return { step: 0, showExplanation: false };
+  if (questionIndex === -1) return { step: 0, showIntro: true, showExplanation: false, showSummary: false };
 
-  return { step: questionIndex, showExplanation: isImpactStep };
+  return { step: questionIndex, showIntro: false, showExplanation: isImpactStep, showSummary: false };
 }
 
 function getRouteFromUrl() {
@@ -563,30 +645,66 @@ const coloradoLocations = [
   { name: "Arvada, Jefferson County", multiplier: 1.08 },
   { name: "Aspen, Pitkin County", multiplier: 2.45 },
   { name: "Aurora, Arapahoe County", multiplier: 1.04 },
+  { name: "Avon, Eagle County", multiplier: 1.72 },
+  { name: "Basalt, Eagle County", multiplier: 1.46 },
+  { name: "Berthoud, Larimer County", multiplier: 1.02 },
   { name: "Boulder, Boulder County", multiplier: 1.62 },
   { name: "Breckenridge, Summit County", multiplier: 1.72 },
   { name: "Broomfield, Broomfield County", multiplier: 1.28 },
+  { name: "Buena Vista, Chaffee County", multiplier: 1.12 },
+  { name: "Canon City, Fremont County", multiplier: 0.72 },
+  { name: "Carbondale, Garfield County", multiplier: 1.26 },
   { name: "Castle Rock, Douglas County", multiplier: 1.22 },
+  { name: "Centennial, Arapahoe County", multiplier: 1.14 },
   { name: "Colorado Springs, El Paso County", multiplier: 0.92 },
+  { name: "Commerce City, Adams County", multiplier: 0.96 },
   { name: "Denver, Denver County", multiplier: 1.18 },
+  { name: "Dillon, Summit County", multiplier: 1.5 },
   { name: "Durango, La Plata County", multiplier: 1.1 },
   { name: "Englewood, Arapahoe County", multiplier: 1.04 },
+  { name: "Erie, Weld County", multiplier: 1.12 },
+  { name: "Estes Park, Larimer County", multiplier: 1.18 },
+  { name: "Evans, Weld County", multiplier: 0.78 },
+  { name: "Federal Heights, Adams County", multiplier: 0.88 },
+  { name: "Firestone, Weld County", multiplier: 0.96 },
   { name: "Fort Collins, Larimer County", multiplier: 1.02 },
+  { name: "Fountain, El Paso County", multiplier: 0.82 },
+  { name: "Frederick, Weld County", multiplier: 0.98 },
+  { name: "Frisco, Summit County", multiplier: 1.6 },
+  { name: "Fruita, Mesa County", multiplier: 0.72 },
+  { name: "Glenwood Springs, Garfield County", multiplier: 1.22 },
   { name: "Golden, Jefferson County", multiplier: 1.22 },
   { name: "Grand Junction, Mesa County", multiplier: 0.76 },
   { name: "Greeley, Weld County", multiplier: 0.82 },
+  { name: "Greenwood Village, Arapahoe County", multiplier: 1.42 },
+  { name: "Johnstown, Weld County", multiplier: 0.94 },
+  { name: "Lafayette, Boulder County", multiplier: 1.26 },
   { name: "Lakewood, Jefferson County", multiplier: 1.12 },
   { name: "Littleton, Arapahoe County", multiplier: 1.12 },
   { name: "Longmont, Boulder County", multiplier: 1.2 },
   { name: "Loveland, Larimer County", multiplier: 0.98 },
+  { name: "Louisville, Boulder County", multiplier: 1.34 },
+  { name: "Lyons, Boulder County", multiplier: 1.24 },
+  { name: "Manitou Springs, El Paso County", multiplier: 1.0 },
+  { name: "Montrose, Montrose County", multiplier: 0.84 },
+  { name: "Morrison, Jefferson County", multiplier: 1.24 },
+  { name: "Nederland, Boulder County", multiplier: 1.14 },
+  { name: "Northglenn, Adams County", multiplier: 0.96 },
   { name: "Parker, Douglas County", multiplier: 1.2 },
   { name: "Pueblo, Pueblo County", multiplier: 0.66 },
+  { name: "Salida, Chaffee County", multiplier: 1.1 },
+  { name: "Silverthorne, Summit County", multiplier: 1.48 },
   { name: "Steamboat Springs, Routt County", multiplier: 1.42 },
+  { name: "Superior, Boulder County", multiplier: 1.32 },
+  { name: "Thornton, Adams County", multiplier: 0.98 },
+  { name: "Timnath, Larimer County", multiplier: 1.12 },
   { name: "Vail, Eagle County", multiplier: 1.95 },
+  { name: "Wheat Ridge, Jefferson County", multiplier: 1.1 },
   { name: "Westminster, Adams County", multiplier: 1.02 },
+  { name: "Windsor, Weld County", multiplier: 0.98 },
 ];
 
-const bedroomOptions = [0, 1, 2, 3, 4, 5, 6];
+const bedroomOptions = [1, 2, 3, 4, 5, 6];
 const creditScoreOptions = [
   { label: "Needs work", range: "560 - 639", min: 560, max: 639, value: 620 },
   { label: "Fair", range: "640 - 699", min: 640, max: 699, value: 670 },
@@ -628,6 +746,24 @@ function getLocationMultiplier(location: string) {
   return coloradoLocations.find((locationOption) => locationOption.name === location)?.multiplier ?? 1.18;
 }
 
+function normalizeLocations(value: unknown) {
+  const values = Array.isArray(value) ? value : typeof value === "string" && value ? [value] : [];
+
+  return values.filter((location): location is string => coloradoLocations.some((locationOption) => locationOption.name === location));
+}
+
+function getCheapestLocation(locations: string[]) {
+  return [...normalizeLocations(locations)].sort((first, second) => getLocationMultiplier(first) - getLocationMultiplier(second))[0] ?? "";
+}
+
+function getLocationsLabel(locations: string[]) {
+  const selectedLocations = normalizeLocations(locations);
+
+  if (!selectedLocations.length) return "No location selected";
+  if (selectedLocations.length === 1) return selectedLocations[0];
+  return selectedLocations.join("; ");
+}
+
 function getMarketLabel(multiplier: number) {
   if (multiplier >= 1.6) return "premium urban market";
   if (multiplier >= 1.15) return "higher-cost local market";
@@ -642,6 +778,10 @@ function getAssistanceProgram(programId: string) {
 function getCountyName(location: string) {
   const match = location.match(/([A-Za-z ]+) County/);
   return match?.[1].trim() ?? "";
+}
+
+function getCountyNames(locations: string[]) {
+  return Array.from(new Set(normalizeLocations(locations).map(getCountyName).filter(Boolean)));
 }
 
 function getProgramCounties(programId: string) {
@@ -693,6 +833,13 @@ function programMatchesCounty(program: AssistanceProgram, countyName: string) {
   return counties.includes(countyName);
 }
 
+function programMatchesAnyCounty(program: AssistanceProgram, countyNames: string[]) {
+  const counties = getProgramCounties(program.id);
+
+  if (program.id === "none" || counties === "statewide" || !countyNames.length) return true;
+  return countyNames.some((countyName) => counties.includes(countyName));
+}
+
 function estimateAssistanceAmount(program: AssistanceProgram, homePrice: number) {
   const grossAssistance = program.assistanceFixed ?? homePrice * program.assistanceRate;
   return program.assistanceCap ? Math.min(grossAssistance, program.assistanceCap) : grossAssistance;
@@ -740,6 +887,18 @@ function getProgramRequirements(program: AssistanceProgram) {
   return requirementsByProgram[program.id] ?? [program.description];
 }
 
+function programMatchesEligibility(program: AssistanceProgram, eligibility: EligibilityAnswers) {
+  const requirements = getProgramRequirements(program).join(" ").toLowerCase();
+
+  if (eligibility.firstTimeBuyer === "no" && requirements.includes("first-time buyer required")) return false;
+  if (eligibility.firstGenerationBuyer === "no" && requirements.includes("first-generation")) return false;
+  if (eligibility.disabilityEligible === "no" && (requirements.includes("disability") || requirements.includes("disabled"))) return false;
+  if (eligibility.veteranEligible === "no" && requirements.includes("veteran")) return false;
+  if (eligibility.localRequirement === "no" && (requirements.includes("workforce") || requirements.includes("local") || requirements.includes("employee") || requirements.includes("service area") || requirements.includes("city of") || requirements.includes("county purchase") || requirements.includes("county buyer"))) return false;
+
+  return true;
+}
+
 function estimateHousingForBedrooms(bedrooms: number, location: string) {
   const bedroomCount = Math.max(0, Math.min(8, Math.round(bedrooms || 0)));
   const locationMultiplier = getLocationMultiplier(location);
@@ -759,12 +918,14 @@ function estimateHousingForBedrooms(bedrooms: number, location: string) {
 }
 
 function calculateScore(answers: Answers, answeredKeys: QuestionKey[]) {
-  const locationMultiplier = getLocationMultiplier(answers.location);
-  const housingEstimate = estimateHousingForBedrooms(answers.bedrooms, answers.location);
+  const modeledLocation = getCheapestLocation(answers.location);
+  const locationMultiplier = getLocationMultiplier(modeledLocation);
+  const housingEstimate = estimateHousingForBedrooms(answers.bedrooms, modeledLocation);
   const estimatedSquareFeet = housingEstimate.estimatedSquareFeet;
   const estimatedPrice = housingEstimate.estimatedPrice;
   const annualHousingCost = estimatedPrice * 0.081;
-  const housingRatio = annualHousingCost / Math.max(answers.income, 1);
+  const income = Number(answers.income) || 0;
+  const housingRatio = annualHousingCost / Math.max(income, 1);
   const incomeScore = Math.max(0, Math.min(100, 100 - (housingRatio - 0.23) * 230));
   const locationScore = Math.max(0, Math.min(100, 112 - locationMultiplier * 40));
   const bedroomScore = Math.max(0, Math.min(100, 106 - answers.bedrooms * 9));
@@ -777,6 +938,7 @@ function calculateScore(answers: Answers, answeredKeys: QuestionKey[]) {
   const weights: Record<QuestionKey, number> = {
     location: 0.2,
     income: 0.37,
+    householdSize: 0,
     bedrooms: 0.18,
     creditScore: 0.17,
     assistanceProgram: 0.08,
@@ -785,6 +947,7 @@ function calculateScore(answers: Answers, answeredKeys: QuestionKey[]) {
   const partialScores: Record<QuestionKey, number> = {
     location: locationScore,
     income: incomeScore,
+    householdSize: 50,
     bedrooms: bedroomScore,
     creditScore,
     assistanceProgram: assistanceScore,
@@ -798,6 +961,7 @@ function calculateScore(answers: Answers, answeredKeys: QuestionKey[]) {
   return {
     score,
     recommendation,
+    modeledLocation,
     estimatedPrice,
     estimatedSquareFeet,
     monthlyPayment: housingEstimate.monthlyMortgage,
@@ -812,10 +976,14 @@ function calculateScore(answers: Answers, answeredKeys: QuestionKey[]) {
 
 function explainImpact(question: Question, answers: Answers, result: ReturnType<typeof calculateScore>) {
   if (question.key === "location") {
-    const multiplier = getLocationMultiplier(answers.location);
+    const selectedLocations = normalizeLocations(answers.location);
+    const modeledLocation = result.modeledLocation;
+    const multiplier = getLocationMultiplier(modeledLocation);
+    const locationPhrase = selectedLocations.length > 1 ? `${modeledLocation}, the cheapest selected place` : modeledLocation || "Colorado";
+
     return multiplier > 1.25
-      ? `${answers.location} is modeled as a ${getMarketLabel(multiplier)}, so renting gets stronger unless income can support the higher purchase price.`
-      : `${answers.location} is modeled as a ${getMarketLabel(multiplier)}, which makes the buying case easier than in the most expensive counties.`;
+      ? `${locationPhrase} is modeled as a ${getMarketLabel(multiplier)}, so renting gets stronger unless income can support the higher purchase price.`
+      : `${locationPhrase} is modeled as a ${getMarketLabel(multiplier)}, which makes the buying case easier than in the most expensive counties.`;
   }
 
   if (question.key === "income") {
@@ -845,14 +1013,19 @@ function explainImpact(question: Question, answers: Answers, result: ReturnType<
 
 function getQuestionResources(question: Question, answers: Answers, result: ReturnType<typeof calculateScore>): Resource[] {
   if (question.key === "location") {
+    const modeledLocation = result.modeledLocation || "Colorado";
+    const locationQuery = encodeURIComponent(`${modeledLocation} homes for sale and rent`);
+
     return [
       {
-        title: `${answers.location} market check`,
-        description: `Compare recent sale prices and rents in ${answers.location} before deciding whether this modeled ${getMarketLabel(getLocationMultiplier(answers.location))} matches your search area.`,
+        title: `${modeledLocation} market check`,
+        description: `Compare recent sale prices and rents in ${modeledLocation} before deciding whether this modeled ${getMarketLabel(getLocationMultiplier(modeledLocation))} matches your search area.`,
+        url: `https://www.zillow.com/homes/${locationQuery}_rb/`,
       },
       {
         title: "Local housing programs",
         description: "Look for county or city first-time buyer assistance, down-payment grants, and income-restricted ownership options.",
+        url: "https://www.hud.gov/states/colorado/homeownership/buyingprgms",
       },
     ];
   }
@@ -862,10 +1035,12 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
       {
         title: "Payment-to-income target",
         description: `This prototype estimates housing costs at ${Math.round(result.housingRatio * 100)}% of income; many buyers use 28% - 36% as a planning range.`,
+        url: "https://www.consumerfinance.gov/owning-a-home/prepare/mortgage-affordability/",
       },
       {
         title: "Budget cushion",
         description: "Set aside room for utilities, maintenance, HOA dues, insurance changes, and emergency savings before stretching for a payment.",
+        url: "https://www.consumerfinance.gov/owning-a-home/prepare/check-your-spending/",
       },
     ];
   }
@@ -875,10 +1050,12 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
       {
         title: "Rent vs. mortgage by size",
         description: `For this selection, estimated rent is ${answers.bedrooms === 0 ? "not applicable" : formatCurrency(result.monthlyRent)} and estimated mortgage cost is ${formatCurrency(result.monthlyPayment)}.`,
+        url: "https://www.nerdwallet.com/mortgages/rent-vs-buy-calculator",
       },
       {
         title: "Right-size your search",
         description: "Try one bedroom fewer or a flexible office/guest room setup to see how much the target home size changes affordability.",
+        url: "https://www.consumerfinance.gov/owning-a-home/prepare/decide-how-much-to-spend/",
       },
     ];
   }
@@ -890,10 +1067,12 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
       {
         title: `${program.title} fit check`,
         description: `This selection estimates ${formatCurrency(result.assistanceAmount)} in help toward a ${formatCurrency(result.targetDownPayment)} down payment for the modeled home size.`,
+        url: assistanceProgramLinks[program.id] ?? "https://www.hud.gov/states/colorado/homeownership/buyingprgms",
       },
       {
         title: "Verify eligibility",
         description: "Confirm service area, income limits, first-time buyer rules, credit score requirements, and whether the program can stack with your mortgage before relying on it.",
+        url: assistanceProgramLinks[program.id] ?? "https://www.chfainfo.com/homeownership/down-payment-assistance",
       },
     ];
   }
@@ -902,10 +1081,12 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
     {
       title: "Credit score next steps",
       description: "Review credit reports for errors, reduce revolving balances, and avoid opening new debt before applying for a mortgage.",
+      url: "https://www.annualcreditreport.com/",
     },
     {
       title: "Rate shopping",
       description: "Compare pre-approval estimates from multiple lenders because even a small rate difference can change the buy-vs-rent result.",
+      url: "https://www.consumerfinance.gov/owning-a-home/explore-rates/",
     },
   ];
 }
@@ -985,6 +1166,44 @@ function WalkingPersonSvg({ direction }: { direction: "rent" | "buy" }) {
   );
 }
 
+function WhatThisIsPage() {
+  return (
+    <div className="space-y-4">
+      <div className="rounded-3xl border border-primary/15 bg-gradient-to-br from-primary/10 to-white/85 p-4">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Quick planning tool</p>
+        <h3 className="mt-2 text-xl font-black tracking-tight">A first-pass rent-vs-buy guide for Colorado homeownership</h3>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          This prototype helps you explore whether renting or buying may make more sense based on location, income, home size, credit, and down payment assistance.
+        </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:items-center">
+        {[
+          { title: "Answer a few prompts", description: "Share rough planning inputs instead of exact financial documents." },
+          { title: "Watch the result move", description: "Each answer updates the rent-to-buy indicator and explains why." },
+          { title: "Find next steps", description: "Review assistance programs and resources to verify with professionals." },
+        ].map((item, index) => (
+          <div key={item.title} className="contents">
+            <div className="rounded-3xl border bg-white/75 p-4">
+              <p className="font-black tracking-tight">{item.title}</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.description}</p>
+            </div>
+            {index < 2 ? (
+              <div className="flex justify-center text-primary" aria-hidden="true">
+                <ArrowRight className="h-6 w-6 rotate-90 sm:rotate-0" />
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+
+      <p className="rounded-3xl bg-muted/70 p-4 text-sm leading-6 text-muted-foreground">
+        Treat the numbers as educational estimates, not loan approval, legal advice, or a replacement for a lender, realtor, housing counselor, or tax professional.
+      </p>
+    </div>
+  );
+}
+
 function RentVsBuyGraph({ result }: { result: ReturnType<typeof calculateScore> }) {
   const fiveYearRent = result.monthlyRent * 60;
   const downPaymentAndClosing = result.estimatedPrice * 0.055;
@@ -1025,33 +1244,87 @@ function RentVsBuyGraph({ result }: { result: ReturnType<typeof calculateScore> 
   );
 }
 
-function DownPaymentAssistanceList({
-  result,
-  location,
-  selectedProgramId,
-  onSelect,
-}: {
-  result: ReturnType<typeof calculateScore>;
-  location: string;
-  selectedProgramId: string;
-  onSelect: (programId: string) => void;
-}) {
-  const targetDownPayment = result.estimatedPrice * 0.035;
-  const countyName = getCountyName(location);
-  const filteredPrograms = downPaymentAssistancePrograms.filter((program) => programMatchesCounty(program, countyName));
-
+function EligibilityQuestionnaire({ eligibility, onChange }: { eligibility: EligibilityAnswers; onChange: (key: keyof EligibilityAnswers, value: EligibilityValue) => void }) {
   return (
-    <div className="space-y-4 rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
+    <div className="space-y-4 rounded-3xl border border-primary/15 bg-gradient-to-br from-primary/10 to-white/85 p-4">
       <div>
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Down payment help</p>
-        <h3 className="mt-1 text-xl font-black tracking-tight">Choose an assistance option</h3>
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Filter programs</p>
+        <h3 className="mt-1 text-xl font-black tracking-tight">Only show programs that fit your answers</h3>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          {countyName ? `Showing statewide programs and programs serving ${countyName} County.` : "Choose a location first to filter local programs by county."} Availability and eligibility vary, so verify details with the program or lender.
+          Answer “no” to hide programs with that requirement. Leave “unsure” selected when you want to keep those programs visible until you can verify the rule.
         </p>
       </div>
 
       <div className="grid gap-3">
-        {filteredPrograms.map((program) => {
+        {eligibilityQuestions.map((question) => (
+          <div key={question.key} className="rounded-3xl bg-white/75 p-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-black tracking-tight">{question.label}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{question.description}</p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                {(["yes", "no", "unsure"] as EligibilityValue[]).map((value) => {
+                  const isSelected = eligibility[question.key] === value;
+
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => onChange(question.key, value)}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-bold capitalize transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                        isSelected ? "border-primary bg-primary text-primary-foreground" : "bg-white text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {value}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DownPaymentAssistanceList({
+  result,
+  locations,
+  selectedProgramId,
+  eligibility,
+  onEligibilityChange,
+  onSelect,
+}: {
+  result: ReturnType<typeof calculateScore>;
+  locations: string[];
+  selectedProgramId: string;
+  eligibility: EligibilityAnswers;
+  onEligibilityChange: (key: keyof EligibilityAnswers, value: EligibilityValue) => void;
+  onSelect: (programId: string) => void;
+}) {
+  const targetDownPayment = result.estimatedPrice * 0.035;
+  const countyNames = getCountyNames(locations);
+  const locationFilteredPrograms = downPaymentAssistancePrograms.filter((program) => programMatchesAnyCounty(program, countyNames));
+  const filteredPrograms = locationFilteredPrograms.filter((program) => programMatchesEligibility(program, eligibility));
+  const countyLabel = countyNames.length ? countyNames.join(", ") : "";
+
+  return (
+    <div className="space-y-4">
+      <EligibilityQuestionnaire eligibility={eligibility} onChange={onEligibilityChange} />
+
+      <div className="space-y-4 rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
+        <div>
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Down payment help</p>
+        <h3 className="mt-1 text-xl font-black tracking-tight">Choose an assistance option</h3>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          {countyLabel ? `Showing ${filteredPrograms.length} of ${locationFilteredPrograms.length} statewide or local programs for ${countyLabel} ${countyNames.length === 1 ? "County" : "Counties"} after your filters.` : `Showing ${filteredPrograms.length} of ${locationFilteredPrograms.length} programs after your filters; choose one or more locations to narrow local programs by county.`} Verify final eligibility with the program or lender.
+        </p>
+      </div>
+
+      <div className="grid gap-3">
+        {filteredPrograms.length ? filteredPrograms.map((program) => {
           const isSelected = selectedProgramId === program.id;
           const estimatedAssistance = Math.min(targetDownPayment, estimateAssistanceAmount(program, result.estimatedPrice));
           const estimatedCashNeeded = Math.max(0, targetDownPayment - estimatedAssistance);
@@ -1103,7 +1376,12 @@ function DownPaymentAssistanceList({
               </div>
             </button>
           );
-        })}
+        }) : (
+          <div className="rounded-3xl border bg-white/75 p-4 text-sm leading-6 text-muted-foreground">
+            No programs match those filters. Change a “no” answer to “unsure” if you want to keep programs visible while you verify a requirement.
+          </div>
+        )}
+      </div>
       </div>
     </div>
   );
@@ -1162,6 +1440,85 @@ function CreditScoreExplanation({ answers, result }: { answers: Answers; result:
   );
 }
 
+function SummaryNextSteps({ answers, result }: { answers: Answers; result: ReturnType<typeof calculateScore> }) {
+  const program = getAssistanceProgram(answers.assistanceProgram);
+  const programUrl = assistanceProgramLinks[program.id];
+  const bedroomsLabel = answers.bedrooms === 0 ? "empty lot" : `${answers.bedrooms} bedroom${answers.bedrooms === 1 ? "" : "s"}`;
+  const selectedLocations = normalizeLocations(answers.location);
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-3xl border border-primary/15 bg-primary/10 p-4">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Your result</p>
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-3xl font-black tracking-tight">{result.recommendation}</p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Based on your modeled choices, this plan is {result.recommendation.toLowerCase()}.
+            </p>
+          </div>
+          <div className="rounded-2xl bg-white/80 px-4 py-3 text-sm font-bold text-primary">
+            {formatCurrency(result.monthlyPayment)} estimated monthly payment
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-3xl border bg-white/75 p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Location</p>
+          <p className="mt-2 font-black tracking-tight">{getLocationsLabel(answers.location)}</p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            {selectedLocations.length > 1 ? `Home cost modeled with the cheapest selection: ${result.modeledLocation}.` : `Modeled as a ${getMarketLabel(getLocationMultiplier(result.modeledLocation))}.`}
+          </p>
+        </div>
+        <div className="rounded-3xl border bg-white/75 p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Income</p>
+          <p className="mt-2 font-black tracking-tight">{answers.income === "" ? "Not entered" : formatCurrency(answers.income)}</p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">Estimated housing cost is {Math.round(result.housingRatio * 100)}% of income.</p>
+        </div>
+        <div className="rounded-3xl border bg-white/75 p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Home target</p>
+          <p className="mt-2 font-black capitalize tracking-tight">{bedroomsLabel}</p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">Estimated price: {formatCurrency(result.estimatedPrice)}.</p>
+        </div>
+        <div className="rounded-3xl border bg-white/75 p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Credit</p>
+          <p className="mt-2 font-black tracking-tight">{getCreditScoreOption(answers.creditScore).range}</p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">{getCreditScoreMilestone(answers.creditScore)}.</p>
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Down payment choice</p>
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xl font-black tracking-tight">{program.title}</p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              This estimates {formatCurrency(result.assistanceAmount)} in assistance, leaving {formatCurrency(result.cashNeededAfterAssistance)} before closing costs.
+            </p>
+          </div>
+          {programUrl ? (
+            <a href={programUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center rounded-full bg-secondary px-4 py-2 text-sm font-bold text-secondary-foreground transition hover:bg-secondary/80">
+              Program details
+              <ExternalLink className="ml-2 h-4 w-4" />
+            </a>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="rounded-3xl border bg-white/75 p-4">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Next steps</p>
+        <h3 className="mt-1 text-xl font-black tracking-tight">Find a lender and a realtor</h3>
+        <ul className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
+          <li>• Talk with a mortgage lender or housing counselor to confirm loan options, rates, cash-to-close, and assistance eligibility.</li>
+          <li>• Ask whether the lender is approved for your selected down payment assistance program before relying on the estimate.</li>
+          <li>• Find a realtor who knows your target area and can compare homes, HOA costs, inspection needs, and resale tradeoffs.</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [answers, setAnswers] = useState<Answers>(() => {
     const saved = window.localStorage.getItem(STORAGE_KEY);
@@ -1169,23 +1526,33 @@ function App() {
 
     const parsed = JSON.parse(saved) as Partial<Answers> & { country?: string; rooms?: number };
     delete parsed.country;
-    const location = coloradoLocations.some((locationOption) => locationOption.name === parsed.location) ? parsed.location ?? initialAnswers.location : initialAnswers.location;
+    if (parsed.income === 95000) delete parsed.income;
+    const location = normalizeLocations(parsed.location);
 
-    return { ...initialAnswers, ...parsed, location, bedrooms: parsed.bedrooms ?? parsed.rooms ?? initialAnswers.bedrooms };
+    return { ...initialAnswers, ...parsed, location, bedrooms: Math.max(1, parsed.bedrooms ?? parsed.rooms ?? initialAnswers.bedrooms) };
   });
   const initialRoute = getRouteFromUrl();
   const [step, setStep] = useState(initialRoute.step);
+  const [showIntro, setShowIntro] = useState(initialRoute.showIntro);
   const [showExplanation, setShowExplanation] = useState(initialRoute.showExplanation);
-  const [locationSearch, setLocationSearch] = useState(answers.location);
+  const [showSummary, setShowSummary] = useState(initialRoute.showSummary);
+  const [locationSearch, setLocationSearch] = useState("");
   const [isLocationOpen, setIsLocationOpen] = useState(false);
+  const [activeLocationIndex, setActiveLocationIndex] = useState(0);
+  const [eligibility, setEligibility] = useState<EligibilityAnswers>(() => {
+    const saved = window.localStorage.getItem(ELIGIBILITY_STORAGE_KEY);
+    if (!saved) return initialEligibilityAnswers;
 
-  const answeredKeys = useMemo(() => questions.slice(0, step + 1).map((question) => question.key), [step]);
+    return { ...initialEligibilityAnswers, ...(JSON.parse(saved) as Partial<EligibilityAnswers>) };
+  });
+
+  const answeredKeys = useMemo(() => (showIntro ? [] : questions.slice(0, showSummary ? questions.length : step + 1).map((question) => question.key)), [step, showIntro, showSummary]);
   const currentQuestion = questions[step];
   const result = useMemo(() => calculateScore(answers, answeredKeys), [answers, answeredKeys]);
   const answerValue = answers[currentQuestion.key];
-  const isLastPage = step === questions.length - 1 && showExplanation;
-  const pageIndex = step * 2 + (showExplanation ? 2 : 1);
-  const totalPages = questions.length * 2;
+  const isLastPage = showSummary;
+  const totalPages = questions.length * 2 + 2;
+  const pageIndex = showIntro ? 1 : showSummary ? totalPages : step * 2 + (showExplanation ? 3 : 2);
   const resources = getQuestionResources(currentQuestion, answers, result);
   const walkingDirection = result.score < 50 ? "rent" : "buy";
   const filteredLocations = useMemo(() => {
@@ -1205,56 +1572,125 @@ function App() {
         if (firstStartsWithQuery !== secondStartsWithQuery) return firstStartsWithQuery ? -1 : 1;
         return first.name.localeCompare(second.name);
       })
-      .slice(0, 8);
   }, [locationSearch]);
+  const selectedLocations = normalizeLocations(answers.location);
+
+  useEffect(() => {
+    if (!isLocationOpen || !filteredLocations.length) {
+      setActiveLocationIndex(0);
+      return;
+    }
+
+    setActiveLocationIndex((current) => Math.min(current, filteredLocations.length - 1));
+  }, [filteredLocations.length, isLocationOpen]);
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(answers));
   }, [answers]);
 
   useEffect(() => {
-    const stepName = getStepName(step, showExplanation);
+    window.localStorage.setItem(ELIGIBILITY_STORAGE_KEY, JSON.stringify(eligibility));
+  }, [eligibility]);
+
+  useEffect(() => {
+    const stepName = getStepName(step, showIntro, showExplanation, showSummary);
     const url = new URL(window.location.href);
     url.searchParams.set("step", stepName);
 
     if (url.href !== window.location.href) {
       window.history.replaceState(null, "", url);
     }
-  }, [step, showExplanation]);
+  }, [step, showIntro, showExplanation, showSummary]);
 
   useEffect(() => {
     function handlePopState() {
       const route = getRouteFromUrl();
       setStep(route.step);
+      setShowIntro(route.showIntro);
       setShowExplanation(route.showExplanation);
+      setShowSummary(route.showSummary);
     }
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  function updateAnswer(value: string | number) {
+  function updateAnswer(value: string | number | string[]) {
     setAnswers((current) => ({ ...current, [currentQuestion.key]: value }));
   }
 
+  function updateEligibility(key: keyof EligibilityAnswers, value: EligibilityValue) {
+    setEligibility((current) => ({ ...current, [key]: value }));
+  }
+
   function selectLocation(location: string) {
-    setAnswers((current) => ({ ...current, location }));
-    setLocationSearch(location);
+    setAnswers((current) => {
+      const selectedLocations = normalizeLocations(current.location);
+      const locationAlreadySelected = selectedLocations.includes(location);
+
+      return {
+        ...current,
+        location: locationAlreadySelected ? selectedLocations.filter((selectedLocation) => selectedLocation !== location) : [...selectedLocations, location],
+      };
+    });
+    setLocationSearch("");
     setIsLocationOpen(false);
+    setActiveLocationIndex(0);
+  }
+
+  function handleLocationKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setIsLocationOpen(true);
+      setActiveLocationIndex((current) => (filteredLocations.length ? (current + 1) % filteredLocations.length : 0));
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setIsLocationOpen(true);
+      setActiveLocationIndex((current) => (filteredLocations.length ? (current - 1 + filteredLocations.length) % filteredLocations.length : 0));
+    }
+
+    if (event.key === "Enter" && isLocationOpen && filteredLocations[activeLocationIndex]) {
+      event.preventDefault();
+      selectLocation(filteredLocations[activeLocationIndex].name);
+    }
+
+    if (event.key === "Escape") {
+      setIsLocationOpen(false);
+    }
   }
 
   function reset() {
     setAnswers(initialAnswers);
-    setLocationSearch(initialAnswers.location);
+    setEligibility(initialEligibilityAnswers);
+    setLocationSearch("");
     setIsLocationOpen(false);
     setStep(0);
+    setShowIntro(true);
     setShowExplanation(false);
+    setShowSummary(false);
     window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(ELIGIBILITY_STORAGE_KEY);
   }
 
   function goBack() {
+    if (showIntro) return;
+
+    if (showSummary) {
+      setShowSummary(false);
+      setStep(questions.length - 1);
+      setShowExplanation(true);
+      return;
+    }
+
     if (showExplanation) {
       setShowExplanation(false);
+      return;
+    }
+
+    if (step === 0) {
+      setShowIntro(true);
       return;
     }
 
@@ -1263,8 +1699,20 @@ function App() {
   }
 
   function goNext() {
+    if (showIntro) {
+      setShowIntro(false);
+      return;
+    }
+
+    if (showSummary) return;
+
     if (!showExplanation) {
       setShowExplanation(true);
+      return;
+    }
+
+    if (step === questions.length - 1) {
+      setShowSummary(true);
       return;
     }
 
@@ -1302,26 +1750,34 @@ function App() {
           <CardHeader className="gap-1.5 p-5 pb-4">
             <div className="flex items-center justify-between gap-4">
               <span className="rounded-full bg-secondary px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-secondary-foreground">
-                {currentQuestion.eyebrow}
+                {showIntro ? "Welcome" : showSummary ? "Summary" : currentQuestion.eyebrow}
               </span>
               <span className="text-sm font-semibold text-muted-foreground">
                 {pageIndex} / {totalPages}
               </span>
             </div>
-            <CardTitle className="text-2xl leading-tight sm:text-3xl">
-              {showExplanation ? "How that answer changed your result" : currentQuestion.title}
-            </CardTitle>
-            <CardDescription className="text-sm leading-6">
-              {showExplanation ? "Review the impact of your last answer and a few resources to help you investigate further." : currentQuestion.description}
-            </CardDescription>
+            {!showIntro ? (
+              <>
+                <CardTitle className="text-2xl leading-tight sm:text-3xl">
+                  {showSummary ? "Summary and next steps" : showExplanation ? "How that answer changed your result" : currentQuestion.title}
+                </CardTitle>
+                <CardDescription className="text-sm leading-6">
+                  {showSummary ? "Review your choices, then connect with a lender and realtor to verify the plan." : showExplanation ? "Review the impact of your last answer and a few resources to help you investigate further." : currentQuestion.description}
+                </CardDescription>
+              </>
+            ) : null}
           </CardHeader>
           <CardContent className="space-y-5 p-5 pt-0">
-            {showExplanation ? (
+            {showIntro ? (
+              <WhatThisIsPage />
+            ) : showSummary ? (
+              <SummaryNextSteps answers={answers} result={result} />
+            ) : showExplanation ? (
               <div className="space-y-4">
                 <div className="rounded-3xl border border-primary/15 bg-primary/10 p-4">
                   <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">{currentQuestion.eyebrow}</p>
                   <p className="mt-2 text-lg font-black text-foreground">
-                    {currentQuestion.key === "income" ? formatCurrency(Number(answerValue)) : currentQuestion.key === "assistanceProgram" ? getAssistanceProgram(String(answerValue)).title : currentQuestion.key === "creditScore" ? getCreditScoreOption(Number(answerValue)).range : String(answerValue)}
+                    {currentQuestion.key === "income" ? formatCurrency(Number(answerValue)) : currentQuestion.key === "assistanceProgram" ? getAssistanceProgram(String(answerValue)).title : currentQuestion.key === "creditScore" ? getCreditScoreOption(Number(answerValue)).range : getLocationsLabel(answers.location)}
                   </p>
                   <p className="mt-3 text-sm leading-6 text-muted-foreground">{explainImpact(currentQuestion, answers, result)}</p>
                 </div>
@@ -1330,29 +1786,46 @@ function App() {
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   {resources.map((resource) => (
-                    <div key={resource.title} className="rounded-3xl border bg-white/75 p-4">
-                      <p className="font-black tracking-tight">{resource.title}</p>
+                    <a
+                      key={resource.title}
+                      href={resource.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="group rounded-3xl border bg-white/75 p-4 transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <p className="flex items-start justify-between gap-3 font-black tracking-tight">
+                        <span>{resource.title}</span>
+                        <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition group-hover:text-primary" aria-hidden="true" />
+                      </p>
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">{resource.description}</p>
-                    </div>
+                    </a>
                   ))}
                 </div>
               </div>
             ) : currentQuestion.type === "location" ? (
               <div className="space-y-3">
-                <div className="relative space-y-2">
+                <div
+                  className="relative space-y-2"
+                  onBlur={(event) => {
+                    if (!event.currentTarget.contains(event.relatedTarget)) {
+                      setIsLocationOpen(false);
+                    }
+                  }}
+                >
                   <span className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Colorado location</span>
                   <div className="relative">
                     <Input
                       role="combobox"
                       aria-expanded={isLocationOpen}
+                      aria-activedescendant={isLocationOpen && filteredLocations[activeLocationIndex] ? `location-option-${activeLocationIndex}` : undefined}
                       value={locationSearch}
-                      onFocus={() => setIsLocationOpen(true)}
                       onChange={(event) => {
                         setLocationSearch(event.target.value);
-                        updateAnswer(event.target.value);
                         setIsLocationOpen(true);
+                        setActiveLocationIndex(0);
                       }}
-                      placeholder="Start typing, e.g. Highland, Denver County or Boulder"
+                      onKeyDown={handleLocationKeyDown}
+                      placeholder="Search and add places, e.g. Highland or Boulder"
                       className="h-12 bg-white pr-10 text-base"
                     />
                     <button
@@ -1366,18 +1839,23 @@ function App() {
                   </div>
 
                   {isLocationOpen ? (
-                    <div className="absolute z-20 mt-2 max-h-64 w-full overflow-auto rounded-md border bg-white p-1 shadow-xl">
+                    <div className="absolute z-20 mt-2 max-h-64 w-full overflow-auto rounded-md border bg-white p-1 shadow-xl" role="listbox">
                       {filteredLocations.length ? (
-                        filteredLocations.map((locationOption) => {
-                          const isSelected = locationOption.name === answers.location;
+                        filteredLocations.map((locationOption, index) => {
+                          const isSelected = selectedLocations.includes(locationOption.name);
+                          const isActive = index === activeLocationIndex;
 
                           return (
                             <button
                               key={locationOption.name}
+                              id={`location-option-${index}`}
                               type="button"
+                              role="option"
+                              aria-selected={isActive}
                               onMouseDown={(event) => event.preventDefault()}
+                              onMouseEnter={() => setActiveLocationIndex(index)}
                               onClick={() => selectLocation(locationOption.name)}
-                              className="flex w-full items-center justify-between gap-3 rounded-sm px-3 py-2 text-left text-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              className={`flex w-full items-center justify-between gap-3 rounded-sm px-3 py-2 text-left text-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isActive ? "bg-muted" : ""}`}
                             >
                               <span>{locationOption.name}</span>
                               {isSelected ? <Check className="h-4 w-4 text-primary" /> : null}
@@ -1390,8 +1868,24 @@ function App() {
                     </div>
                   ) : null}
                 </div>
+                {selectedLocations.length ? (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedLocations.map((location) => (
+                      <button
+                        key={location}
+                        type="button"
+                        onClick={() => selectLocation(location)}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-bold transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                          "bg-white/80 text-muted-foreground"
+                        }`}
+                      >
+                        {location} ×
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
                 <p className="text-sm leading-6 text-muted-foreground">
-                  Choose a Colorado neighborhood, city, or county; neighborhood and city options include county names for context.
+                  Choose one or more Colorado neighborhoods, cities, or counties; neighborhood and city options include county names for context.
                 </p>
               </div>
             ) : (
@@ -1407,54 +1901,95 @@ function App() {
                       min={currentQuestion.min}
                       max={currentQuestion.max}
                       step={currentQuestion.step}
-                      value={Number(answerValue)}
-                      onChange={(event) => updateAnswer(Number(event.target.value))}
+                      value={answerValue}
+                      onChange={(event) => updateAnswer(event.target.value === "" ? "" : Number(event.target.value))}
                     />
                   </div>
                 ) : currentQuestion.key === "bedrooms" ? (
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {bedroomOptions.map((bedrooms) => {
-                      const estimate = estimateHousingForBedrooms(bedrooms, answers.location);
-                      const isSelected = Number(answerValue) === bedrooms;
-                      const label = bedrooms === 0 ? "Empty lot" : `${bedrooms} bed${bedrooms === 1 ? "" : "s"}`;
+                  <>
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                      {bedroomOptions.map((bedrooms) => {
+                        const estimate = estimateHousingForBedrooms(bedrooms, result.modeledLocation);
+                        const isSelected = Number(answerValue) === bedrooms;
+                        const label = bedrooms === 0 ? "Empty lot" : `${bedrooms} bed${bedrooms === 1 ? "" : "s"}`;
 
-                      return (
-                        <button
-                          key={bedrooms}
-                          type="button"
-                          onClick={() => updateAnswer(bedrooms)}
-                          className={`rounded-3xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                            isSelected ? "border-primary bg-primary/10 shadow-glow" : "bg-white/75"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="font-black tracking-tight">{label}</p>
-                              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                                {bedrooms === 0 ? "land only" : `~${estimate.estimatedSquareFeet.toLocaleString()} sq ft`}
-                              </p>
+                        return (
+                          <button
+                            key={bedrooms}
+                            type="button"
+                            onClick={() => updateAnswer(bedrooms)}
+                            className={`rounded-3xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                              isSelected ? "border-primary bg-primary/10 shadow-glow" : "bg-white/75"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="font-black tracking-tight">{label}</p>
+                                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                  {bedrooms === 0 ? "land only" : `~${estimate.estimatedSquareFeet.toLocaleString()} sq ft`}
+                                </p>
+                              </div>
+                              <span className={`h-4 w-4 rounded-full border-2 ${isSelected ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
                             </div>
-                            <span className={`h-4 w-4 rounded-full border-2 ${isSelected ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
-                          </div>
-                          <div className="mt-2">
-                            <HouseSizeSvg bedrooms={bedrooms} squareFeet={estimate.estimatedSquareFeet} compact />
-                          </div>
-                          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                            <div className="rounded-2xl bg-white/80 p-2.5">
-                              <p className="text-muted-foreground">Rent</p>
-                              <p className="mt-1 font-bold">{bedrooms === 0 ? "N/A" : formatCurrency(estimate.monthlyRent)}</p>
+                            <div className="mt-2">
+                              <HouseSizeSvg bedrooms={bedrooms} squareFeet={estimate.estimatedSquareFeet} compact />
                             </div>
-                            <div className="rounded-2xl bg-white/80 p-2.5">
-                              <p className="text-muted-foreground">Mortgage</p>
-                              <p className="mt-1 font-bold">{formatCurrency(estimate.monthlyMortgage)}</p>
+                            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                              <div className="rounded-2xl bg-white/80 p-2.5">
+                                <p className="text-muted-foreground">Rent</p>
+                                <p className="mt-1 font-bold">{bedrooms === 0 ? "N/A" : formatCurrency(estimate.monthlyRent)}</p>
+                              </div>
+                              <div className="rounded-2xl bg-white/80 p-2.5">
+                                <p className="text-muted-foreground">Mortgage</p>
+                                <p className="mt-1 font-bold">{formatCurrency(estimate.monthlyMortgage)}</p>
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {selectedLocations.length > 1 ? (
+                      <div className="rounded-3xl border border-amber-300/70 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+                        <div className="flex gap-3">
+                          <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
+                          <div className="space-y-3">
+                            <p>
+                              For the house-cost estimate, we use the cheaper selected place: <span className="font-bold">{result.modeledLocation}</span>. Down payment assistance includes programs for any selected county.
+                            </p>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              {[...selectedLocations]
+                                .sort((first, second) => getLocationMultiplier(first) - getLocationMultiplier(second))
+                                .map((location) => {
+                                  const estimate = estimateHousingForBedrooms(Number(answerValue), location);
+                                  const isModeled = location === result.modeledLocation;
+
+                                  return (
+                                    <div key={location} className={`rounded-2xl border bg-white/80 p-3 ${isModeled ? "border-amber-400" : "border-amber-200"}`}>
+                                      <div className="flex items-start justify-between gap-2">
+                                        <p className="font-black tracking-tight text-foreground">{location}</p>
+                                        {isModeled ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[0.65rem] font-black uppercase tracking-[0.14em] text-amber-700">Modeled</span> : null}
+                                      </div>
+                                      <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                                        <div>
+                                          <p>Estimated price</p>
+                                          <p className="mt-1 font-bold text-foreground">{formatCurrency(estimate.estimatedPrice)}</p>
+                                        </div>
+                                        <div>
+                                          <p>Mortgage</p>
+                                          <p className="mt-1 font-bold text-foreground">{formatCurrency(estimate.monthlyMortgage)}/mo</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
                             </div>
                           </div>
-                        </button>
-                      );
-                    })}
-                  </div>
+                        </div>
+                      </div>
+                    ) : null}
+                  </>
                 ) : currentQuestion.key === "assistanceProgram" ? (
-                  <DownPaymentAssistanceList result={result} location={answers.location} selectedProgramId={String(answerValue)} onSelect={updateAnswer} />
+                  <DownPaymentAssistanceList result={result} locations={answers.location} selectedProgramId={String(answerValue)} eligibility={eligibility} onEligibilityChange={updateEligibility} onSelect={updateAnswer} />
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2">
                     {creditScoreOptions.map((option) => {
@@ -1499,12 +2034,12 @@ function App() {
               Reset
             </Button>
             <div className="flex gap-3">
-              <Button variant="secondary" disabled={step === 0 && !showExplanation} onClick={goBack}>
+              <Button variant="secondary" disabled={showIntro} onClick={goBack}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
               <Button onClick={goNext} disabled={isLastPage}>
-                {showExplanation ? (isLastPage ? "Complete" : "Next question") : "See impact"}
+                {showIntro ? "Get started" : showSummary ? "Complete" : showExplanation ? (step === questions.length - 1 ? "See summary" : "Next question") : "See impact"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
