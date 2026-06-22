@@ -698,19 +698,46 @@ function estimateAssistanceAmount(program: AssistanceProgram, homePrice: number)
   return program.assistanceCap ? Math.min(grossAssistance, program.assistanceCap) : grossAssistance;
 }
 
-function getProgramConditionNotes(program: AssistanceProgram, eligibility: EligibilityAnswers) {
-  const text = `${program.bestFor} ${program.description}`.toLowerCase();
-  const notes: string[] = [];
+function getProgramRequirements(program: AssistanceProgram) {
+  const requirementsByProgram: Record<string, string[]> = {
+    none: ["No program eligibility requirements; plan to bring your own down payment and closing funds."],
+    "chfa-firststep-plus": ["First-time buyer required.", "Minimum 620 credit score.", "$1,000 minimum borrower contribution; gifts may be allowed.", "Must pair with an eligible CHFA first mortgage."],
+    "chfa-smartstep-plus": ["Minimum 620 credit score.", "$1,000 minimum borrower contribution; gifts may be allowed.", "$174,440 statewide income limit.", "Must pair with an eligible CHFA first mortgage."],
+    "chfa-firstgeneration": ["First-time buyer required.", "At least one borrower must meet first-generation eligibility.", "Minimum 620 credit score.", "$1,000 minimum borrower contribution."],
+    "chfa-homeaccess": ["Borrower has a permanent disability or is custodial parent/guardian of a child with a disability.", "Minimum 620 credit score.", "$500 minimum borrower contribution.", "Must pair with an eligible CHFA first mortgage."],
+    "chac-immediate": ["First-time buyer required.", "Own funds required for minimum contribution.", "About 110% AMI income limit.", "Must work with a first mortgage lender that can pair with CHAC."],
+    "chac-deferral": ["First-time buyer required.", "80% AMI income limit.", "Own funds required for contribution.", "Homebuyer counseling and reserve requirements apply."],
+    "chac-disability": ["First-time buyer required.", "Disability documentation required.", "$750 minimum borrower contribution.", "Gift funds are not allowed for the minimum contribution."],
+    "metro-dpa": ["Approved Denver-metro county or service area required.", "Minimum 620 credit score.", "$216,000 income limit.", "Must use an approved MetroDPA lender."],
+    "aurora-prop-123": ["Home must be in the City of Aurora.", "Income limit around 120% AMI.", "Silent second is repayable on sale, refinance, or payoff.", "Not limited to first-time buyers."],
+    "pikes-peak-dpa": ["Purchase must be in El Paso County.", "Minimum 640 credit score.", "Forgiveness schedule applies: 50% over first 5 years, remaining at 30 years.", "Not limited to first-time buyers."],
+    "boulder-county-bcdpap": ["First-time buyer required.", "Boulder County purchase outside City of Boulder.", "80% AMI income limit.", "Own funds, coaching, and CHFA education required."],
+    "boulder-h2o": ["First-time buyer required.", "City of Boulder purchase.", "Income up to 120% AMI.", "One household member must work 30+ hours per week."],
+    "boulder-middle-income": ["First-time buyer required.", "City of Boulder purchase.", "Income up to about 150% AMI.", "Deed restriction, waitlist, and limited availability may apply."],
+    "boulder-solution-grant": ["Must buy a select permanently affordable or Thistle CLT home in Boulder city limits.", "Need-based grant; funds are limited.", "Property restrictions apply."],
+    "colorado-roots": ["First-time buyer required.", "Selected Colorado community required.", "120% AMI income limit.", "Minimum contribution is greater of $1,000 or 1% of purchase price."],
+    "broomfield-chac": ["City of Broomfield purchase.", "First-time buyer required.", "80% AMI income limit.", "Own funds required; first-generation buyers prioritized."],
+    "firstbank-idf": ["First-time buyer required.", "80% AMI income limit.", "Must use FirstBank / IDF program channel.", "4% interest, 15-year second mortgage with monthly payments."],
+    "dearfield-fund": ["Black first-time buyer self-identification eligibility.", "Six-county Denver metro service area.", "140% AMI income limit.", "Shared-appreciation repayment applies."],
+    "eagle-eclf-shared": ["Eagle County primary residence required.", "Maximum eligible purchase price is $850,000.", "Shared appreciation is due at repayment."],
+    "eagle-eclf-amortized": ["Eagle County purchase required.", "FHA first mortgage only.", "Borrower must contribute at least 50% of the assistance amount.", "Monthly payments apply on the amortized second."],
+    "eagle-ecdoh": ["Eagle County purchase required.", "80% AMI income limit.", "Pre-application meeting required.", "30-year term at 2.5% simple interest; possible 60-month deferment."],
+    "eagle-ranch-erhc": ["Eagle Ranch subdivision purchase required.", "Deferred or equity-share terms require program confirmation.", "Narrow geography and program-specific availability apply."],
+    "chfa-sectioneight-plus": ["Section 8 homeownership voucher required.", "First-time buyer required unless a veteran exception applies.", "$500/$750 borrower contribution depending on program path.", "620 or program minimum credit score."],
+    "good-neighbor-next-door": ["Must be an eligible law enforcement officer, teacher, firefighter, or EMT.", "Must buy an eligible HUD home in a revitalization area.", "HUD occupancy and resale rules apply."],
+    "colorado-hfa1-plus": ["$174,440 statewide income limit.", "$1,000 borrower contribution.", "Must pair with an eligible CHFA first mortgage.", "Not limited to first-time buyers."],
+    "chenoa-fund-fha": ["FHA loan required.", "Minimum 600 credit score.", "$0 minimum borrower contribution.", "Repayable or forgivable second-mortgage terms vary."],
+    "chfa-vlip": ["Freddie Mac conventional loan required.", "Very-low-income eligibility required.", "620 or Freddie Mac minimum credit score.", "$1,000 borrower contribution."],
+    "douglas-dchp": ["Douglas County buyer required.", "First-time buyer required.", "80% AMI income limit.", "1% minimum contribution; resident/worker preference may apply."],
+    "noco-equity-share": ["Larimer or Weld County purchase required.", "Borrower cannot own other property.", "120% AMI income limit.", "5% own-funds contribution required."],
+    "estes-valley": ["Park R3 School District workforce connection required.", "First-time buyer required.", "81% to 150% AMI income range.", "$3,000 own-funds contribution required."],
+    "greeley-ghope": ["Must be employee of a participating Greeley-based employer.", "Home must be in eligible Greeley program boundaries.", "Single-family homes only.", "No income limit and not first-time-only."],
+    "summit-srlf": ["Summit County workforce connection required.", "Minimum 620 credit score.", "50% to 160% AMI income range.", "2% own-funds contribution required."],
+    "eagle-ehop": ["Eligible Eagle County Government employee required.", "No FHA financing.", "Shared appreciation may apply after 24 months.", "No income limit."],
+    "yampa-valley": ["Routt County workforce/local work requirement.", "150% AMI income limit.", "Minimum contribution is greater of $1,000 or 1% of purchase price.", "Not limited to first-time buyers."],
+  };
 
-  if (text.includes("first-time") && eligibility.firstTimeBuyer !== "yes") notes.push(eligibility.firstTimeBuyer === "no" ? "May require first-time buyer status." : "Confirm first-time buyer status.");
-  if (text.includes("first-generation") && eligibility.firstGenerationBuyer !== "yes") notes.push(eligibility.firstGenerationBuyer === "no" ? "May require first-generation eligibility." : "Confirm first-generation eligibility.");
-  if (text.includes("disability") && eligibility.disabilityEligible !== "yes") notes.push(eligibility.disabilityEligible === "no" ? "May require disability eligibility." : "Confirm disability documentation.");
-  if (text.includes("veteran") && eligibility.veteranEligible !== "yes") notes.push(eligibility.veteranEligible === "no" ? "Veteran exception may not apply." : "Confirm veteran eligibility if relevant.");
-  if ((text.includes("city") || text.includes("county") || text.includes("work") || text.includes("local")) && eligibility.localRequirement !== "yes") notes.push(eligibility.localRequirement === "no" ? "May require a specific city, county, or workforce connection." : "Confirm local area or workforce rules.");
-  if ((text.includes("own funds") || text.includes("minimum contribution") || text.includes("borrower must contribute")) && eligibility.ownFundsContribution !== "yes") notes.push(eligibility.ownFundsContribution === "no" ? "May require a borrower cash contribution." : "Confirm minimum contribution source.");
-  if ((text.includes("counseling") || text.includes("education") || text.includes("coaching")) && eligibility.buyerEducation !== "yes") notes.push(eligibility.buyerEducation === "no" ? "May require buyer education or counseling." : "Confirm education/counseling timing.");
-
-  return notes;
+  return requirementsByProgram[program.id] ?? [program.description];
 }
 
 function estimateHousingForBedrooms(bedrooms: number, location: string) {
@@ -998,64 +1025,15 @@ function RentVsBuyGraph({ result }: { result: ReturnType<typeof calculateScore> 
   );
 }
 
-function EligibilityQuestionnaire({ eligibility, onChange }: { eligibility: EligibilityAnswers; onChange: (key: keyof EligibilityAnswers, value: EligibilityValue) => void }) {
-  return (
-    <div className="space-y-4 rounded-3xl border border-primary/15 bg-gradient-to-br from-primary/10 to-white/85 p-4">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Eligibility check</p>
-        <h3 className="mt-1 text-xl font-black tracking-tight">Other conditions programs may ask about</h3>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          These answers do not guarantee eligibility, but they flag programs that may need extra verification before you rely on the assistance amount.
-        </p>
-      </div>
-
-      <div className="grid gap-3">
-        {eligibilityQuestions.map((question) => (
-          <div key={question.key} className="rounded-3xl bg-white/75 p-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-black tracking-tight">{question.label}</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{question.description}</p>
-              </div>
-              <div className="flex shrink-0 gap-2">
-                {(["yes", "no", "unsure"] as EligibilityValue[]).map((value) => {
-                  const isSelected = eligibility[question.key] === value;
-
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => onChange(question.key, value)}
-                      className={`rounded-full border px-3 py-1.5 text-xs font-bold capitalize transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                        isSelected ? "border-primary bg-primary text-primary-foreground" : "bg-white text-muted-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {value}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function DownPaymentAssistanceList({
   result,
   location,
   selectedProgramId,
-  eligibility,
-  onEligibilityChange,
   onSelect,
 }: {
   result: ReturnType<typeof calculateScore>;
   location: string;
   selectedProgramId: string;
-  eligibility: EligibilityAnswers;
-  onEligibilityChange: (key: keyof EligibilityAnswers, value: EligibilityValue) => void;
   onSelect: (programId: string) => void;
 }) {
   const targetDownPayment = result.estimatedPrice * 0.035;
@@ -1063,10 +1041,7 @@ function DownPaymentAssistanceList({
   const filteredPrograms = downPaymentAssistancePrograms.filter((program) => programMatchesCounty(program, countyName));
 
   return (
-    <div className="space-y-4">
-      <EligibilityQuestionnaire eligibility={eligibility} onChange={onEligibilityChange} />
-
-      <div className="space-y-4 rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
+    <div className="space-y-4 rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
       <div>
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Down payment help</p>
         <h3 className="mt-1 text-xl font-black tracking-tight">Choose an assistance option</h3>
@@ -1080,7 +1055,7 @@ function DownPaymentAssistanceList({
           const isSelected = selectedProgramId === program.id;
           const estimatedAssistance = Math.min(targetDownPayment, estimateAssistanceAmount(program, result.estimatedPrice));
           const estimatedCashNeeded = Math.max(0, targetDownPayment - estimatedAssistance);
-          const conditionNotes = getProgramConditionNotes(program, eligibility);
+          const requirements = getProgramRequirements(program);
 
           return (
             <button
@@ -1102,12 +1077,12 @@ function DownPaymentAssistanceList({
                 </div>
               </div>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">{program.description}</p>
-              {conditionNotes.length ? (
+              {requirements.length ? (
                 <div className="mt-3 rounded-2xl bg-secondary/60 p-3 text-xs leading-5 text-secondary-foreground">
-                  <p className="font-black uppercase tracking-[0.16em]">Verify before counting on it</p>
+                  <p className="font-black uppercase tracking-[0.16em]">Requirements to verify</p>
                   <ul className="mt-1 space-y-1">
-                    {conditionNotes.slice(0, 3).map((note) => (
-                      <li key={note}>• {note}</li>
+                    {requirements.map((requirement) => (
+                      <li key={requirement}>• {requirement}</li>
                     ))}
                   </ul>
                 </div>
@@ -1129,7 +1104,6 @@ function DownPaymentAssistanceList({
             </button>
           );
         })}
-      </div>
       </div>
     </div>
   );
@@ -1204,12 +1178,6 @@ function App() {
   const [showExplanation, setShowExplanation] = useState(initialRoute.showExplanation);
   const [locationSearch, setLocationSearch] = useState(answers.location);
   const [isLocationOpen, setIsLocationOpen] = useState(false);
-  const [eligibility, setEligibility] = useState<EligibilityAnswers>(() => {
-    const saved = window.localStorage.getItem(ELIGIBILITY_STORAGE_KEY);
-    if (!saved) return initialEligibilityAnswers;
-
-    return { ...initialEligibilityAnswers, ...(JSON.parse(saved) as Partial<EligibilityAnswers>) };
-  });
 
   const answeredKeys = useMemo(() => questions.slice(0, step + 1).map((question) => question.key), [step]);
   const currentQuestion = questions[step];
@@ -1245,10 +1213,6 @@ function App() {
   }, [answers]);
 
   useEffect(() => {
-    window.localStorage.setItem(ELIGIBILITY_STORAGE_KEY, JSON.stringify(eligibility));
-  }, [eligibility]);
-
-  useEffect(() => {
     const stepName = getStepName(step, showExplanation);
     const url = new URL(window.location.href);
     url.searchParams.set("step", stepName);
@@ -1273,10 +1237,6 @@ function App() {
     setAnswers((current) => ({ ...current, [currentQuestion.key]: value }));
   }
 
-  function updateEligibility(key: keyof EligibilityAnswers, value: EligibilityValue) {
-    setEligibility((current) => ({ ...current, [key]: value }));
-  }
-
   function selectLocation(location: string) {
     setAnswers((current) => ({ ...current, location }));
     setLocationSearch(location);
@@ -1285,13 +1245,11 @@ function App() {
 
   function reset() {
     setAnswers(initialAnswers);
-    setEligibility(initialEligibilityAnswers);
     setLocationSearch(initialAnswers.location);
     setIsLocationOpen(false);
     setStep(0);
     setShowExplanation(false);
     window.localStorage.removeItem(STORAGE_KEY);
-    window.localStorage.removeItem(ELIGIBILITY_STORAGE_KEY);
   }
 
   function goBack() {
@@ -1496,7 +1454,7 @@ function App() {
                     })}
                   </div>
                 ) : currentQuestion.key === "assistanceProgram" ? (
-                  <DownPaymentAssistanceList result={result} location={answers.location} selectedProgramId={String(answerValue)} eligibility={eligibility} onEligibilityChange={updateEligibility} onSelect={updateAnswer} />
+                  <DownPaymentAssistanceList result={result} location={answers.location} selectedProgramId={String(answerValue)} onSelect={updateAnswer} />
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2">
                     {creditScoreOptions.map((option) => {
