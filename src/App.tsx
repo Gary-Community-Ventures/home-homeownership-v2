@@ -11,6 +11,7 @@ type Answers = {
   bedrooms: number;
   creditScore: number;
   assistanceProgram: string;
+  affordablePrograms: string[];
 };
 
 type QuestionKey = keyof Answers;
@@ -54,8 +55,150 @@ type AssistanceProgram = {
   description: string;
 };
 
+type Contact = {
+  id: string;
+  name: string;
+  company: string;
+  phone?: string;
+  email?: string;
+  nmls?: string;
+  award?: string;
+  languages?: string;
+  website?: string;
+  specialties?: string[];
+  countiesServed: string[];
+  notes?: string;
+};
+
+type HomeownershipProgram = {
+  id: string;
+  name: string;
+  organization: string;
+  modelType: string;
+  serviceArea: string;
+  incomeLimit: string;
+  requirements: string;
+  benefits: string[];
+  drawbacks: string[];
+  website: string;
+  contact: string;
+  verified: "Verified" | "Partial";
+  scoreImpact: number;
+};
+
 const STORAGE_KEY = "home-buying-prototype-answers";
 const ELIGIBILITY_STORAGE_KEY = "home-buying-prototype-eligibility";
+const SELECTED_LENDER_STORAGE_KEY = "home-buying-prototype-selected-lender";
+const SELECTED_REALTOR_STORAGE_KEY = "home-buying-prototype-selected-realtor";
+const MODELED_LOCATION_STORAGE_KEY = "home-buying-prototype-modeled-location";
+
+const affordableHomeownershipPrograms: HomeownershipProgram[] = [
+  {
+    id: "eclt",
+    name: "Elevation Community Land Trust (ECLT)",
+    organization: "Elevation CLT",
+    modelType: "Community Land Trust",
+    serviceArea: "Statewide, including Denver Metro and Larimer communities",
+    incomeLimit: "Generally 80% AMI; no published minimum income; housing payment usually capped around 33% of gross monthly income, with possible waiver to 35% for 700+ FICO.",
+    requirements: "Income and asset eligibility, online orientation, approved lender, 99-year renewable land lease, shared appreciation on sale.",
+    benefits: ["Below-market home prices", "Permanent affordability", "Builds equity through ownership", "Conventional mortgage eligible"],
+    drawbacks: ["You lease the land", "Limited resale appreciation", "Resale restrictions", "Limited inventory"],
+    website: "https://elevationclt.org/qualify-apply/",
+    contact: "info@elevationclt.org | 720-822-0052",
+    verified: "Verified",
+    scoreImpact: 10,
+  },
+  {
+    id: "cclt",
+    name: "Colorado Community Land Trust (CCLT)",
+    organization: "Habitat for Humanity of Metro Denver",
+    modelType: "Community Land Trust",
+    serviceArea: "Denver Metro, including Lowry, Speer, Cole, and Swansea",
+    incomeLimit: "80% AMI; affordable mortgage payments set not to exceed about 30% of family gross monthly income.",
+    requirements: "Income verification, homebuyer education, mortgage pre-qualification, and Habitat-approved lenders.",
+    benefits: ["Habitat support", "Permanently affordable neighborhoods", "Equity-building opportunity", "Established portfolio"],
+    drawbacks: ["Specific Denver neighborhoods", "Land lease model", "Restricted appreciation", "Limited inventory"],
+    website: "https://habitatmetrodenver.org/home-programs/cclt/",
+    contact: "stewardship@habitatmetrodenver.org | 720-496-2703",
+    verified: "Verified",
+    scoreImpact: 10,
+  },
+  {
+    id: "thistle",
+    name: "Thistle Community Land Trust",
+    organization: "Thistle Community Housing",
+    modelType: "Community Land Trust",
+    serviceArea: "Boulder County",
+    incomeLimit: "80% AMI; minimum income not published.",
+    requirements: "Boulder County common application, income and asset verification, CHFA certificate or mortgage pre-qualification, and CLT supplement.",
+    benefits: ["Serves high-cost Boulder County", "99-year renewable land lease", "Historically very low sale prices", "Includes Mapleton Mobile Home Park option"],
+    drawbacks: ["Boulder County only", "Very limited inventory", "Applications only when homes are available", "Resale price restrictions"],
+    website: "https://www.thistlecommunityhousing.org/community-land-trust",
+    contact: "info@thistlecommunities.org | 303-443-0007",
+    verified: "Verified",
+    scoreImpact: 10,
+  },
+  {
+    id: "habitat-metro-denver",
+    name: "Habitat for Humanity Metro Denver",
+    organization: "Habitat for Humanity",
+    modelType: "Affordable Homeownership / Sweat Equity",
+    serviceArea: "Denver Metro",
+    incomeLimit: "Below 80% AMI; affordable mortgage payments are generally set near 30% of family gross monthly income.",
+    requirements: "Income verification, homebuyer education, sweat equity, and ability to afford an affordable mortgage.",
+    benefits: ["Very affordable mortgage payments", "Community through sweat equity", "Full homeownership model", "Long-running metro Denver program"],
+    drawbacks: ["Significant time commitment", "Limited inventory", "Competitive application", "Must be both eligible and mortgage-ready"],
+    website: "https://habitatmetrodenver.org/home-programs/homeownership/",
+    contact: "homeownership@habitatmetrodenver.org",
+    verified: "Verified",
+    scoreImpact: 11,
+  },
+  {
+    id: "chaffee-housing-trust",
+    name: "Chaffee Housing Trust",
+    organization: "Chaffee Housing Trust",
+    modelType: "Community Land Trust",
+    serviceArea: "Chaffee County / Buena Vista area",
+    incomeLimit: "Varies; minimum income not published.",
+    requirements: "Income eligibility and CLT homeownership terms.",
+    benefits: ["Rural mountain community focus", "Affordable ownership and rental portfolio", "Sustainable housing focus"],
+    drawbacks: ["Very limited geography", "Small inventory", "Land lease restrictions"],
+    website: "https://chaffeehousing.org",
+    contact: "info@chaffeehousing.org | 719-239-1199",
+    verified: "Partial",
+    scoreImpact: 7,
+  },
+  {
+    id: "goose-creek-clt",
+    name: "Goose Creek Community Land Trust",
+    organization: "Goose Creek CLT",
+    modelType: "Community Land Trust",
+    serviceArea: "Boulder",
+    incomeLimit: "Multiple income levels; Maintain the Middle may have a minimum near 60% AMI, but current official details need verification.",
+    requirements: "Income eligibility and environmentally sustainable housing focus.",
+    benefits: ["Sustainability focus", "Serves diverse income levels", "Boulder location"],
+    drawbacks: ["Newer organization", "Limited public information", "Small scale"],
+    website: "https://goosecreekclt.org",
+    contact: "david@goosecreekclt.org | 303-545-6255",
+    verified: "Partial",
+    scoreImpact: 7,
+  },
+  {
+    id: "crhdc-contractor-build",
+    name: "CRHDC Contractor Build Homes",
+    organization: "CRHDC",
+    modelType: "Affordable New Construction",
+    serviceArea: "San Luis Valley only",
+    incomeLimit: "60% to 120% AMI.",
+    requirements: "Income eligibility, mortgage qualification, and working with CRHDC on loans, contracting, and build scheduling.",
+    benefits: ["New construction", "CRHDC support with build process", "Customization options", "Multiple floor plans"],
+    drawbacks: ["San Luis Valley only", "Development-area dependent", "Inventory depends on build feasibility"],
+    website: "https://crhdc.org/services/housing-development/",
+    contact: "CRHDC | 303-428-1448",
+    verified: "Verified",
+    scoreImpact: 8,
+  },
+];
 
 const initialEligibilityAnswers: EligibilityAnswers = {
   firstTimeBuyer: "unsure",
@@ -220,15 +363,6 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     assistanceRate: 0.1,
     bestFor: "City of Broomfield first-time buyers",
     description: "0% deferred loan administered by CHAC. Prioritizes first-generation buyers, 80% AMI limit, own funds required for minimum contribution.",
-  },
-  {
-    id: "firstbank-idf",
-    title: "FirstBank DPA Program",
-    assistance: "Up to 20%, max $30K",
-    assistanceRate: 0.2,
-    assistanceCap: 30000,
-    bestFor: "Statewide buyers using FirstBank",
-    description: "Impact Development Fund / FirstBank second mortgage. First-time buyer required, 80% AMI limit, 4% interest, 15-year term with monthly payments.",
   },
   {
     id: "dearfield-fund",
@@ -398,7 +532,6 @@ const assistanceProgramLinks: Record<string, string> = {
   "boulder-solution-grant": "https://bouldercolorado.gov/services/homeownership-programs",
   "colorado-roots": "https://www.impactdf.org/colorado-roots-dpa-fund/",
   "broomfield-chac": "https://broomfield.org/384/Housing-Programs",
-  "firstbank-idf": "https://www.impactdf.org/down-payment-assistance/",
   "dearfield-fund": "https://dearfieldfund.com/",
   "eagle-eclf-shared": "https://eaglecounty.us/departments___services/housing/eagle_county_loan_fund.php",
   "eagle-eclf-amortized": "https://eaglecounty.us/departments___services/housing/eagle_county_loan_fund.php",
@@ -418,6 +551,65 @@ const assistanceProgramLinks: Record<string, string> = {
   "yampa-valley": "https://yampavalleyha.org/",
 };
 
+const lenders: Contact[] = [
+  { id: "cindy-sotelo", name: "Cindy Sotelo", company: "American Financing Corporation", phone: "303.557.4239", email: "cindy.sotelo@americanfinancing.net", nmls: "1231199", award: "Bronze Lender", languages: "Spanish", countiesServed: ["Adams", "Arapahoe", "Denver", "El Paso", "Pueblo", "Weld"], notes: "Serves Black and African American households and Hispanic and Latino households." },
+  { id: "eric-freiboth", name: "Eric Freiboth", company: "American Financing Corporation", phone: "720.903.7165", email: "eric.freiboth@americanfinancing.net", nmls: "1854661", award: "Bronze Lender", countiesServed: ["Adams", "Arapahoe", "Cheyenne", "Denver", "Elbert", "Morgan", "Otero", "Teller", "Weld"], notes: "Serves API/NHPI, Hispanic and Latino, and rural households." },
+  { id: "jason-roe", name: "Jason Roe", company: "American Financing Corporation", phone: "720.924.8083", email: "jason.roe@americanfinancing.net", nmls: "1875424", award: "Silver Lender", countiesServed: ["Adams", "Arapahoe", "Broomfield", "Denver", "Douglas", "Fremont", "Garfield", "Lincoln", "Pueblo", "Weld"], notes: "Serves Black and African American, API/NHPI, and rural households." },
+  { id: "brynn-warner", name: "Brynn Warner", company: "CMG Mortgage, Inc.", phone: "720.726.1273", email: "bwarner@cmghomeloans.com", nmls: "1474253", award: "Bronze Lender", countiesServed: ["Adams", "Arapahoe", "Denver", "Douglas", "Jefferson", "Larimer", "Weld"], notes: "LAG member; serves Black and African American households and Hispanic and Latino households." },
+  { id: "daniel-lopez", name: "Daniel Lopez", company: "CMG Mortgage, Inc.", phone: "720.262.6233", email: "daniellopez@cmghomeloans.com", nmls: "1876824", award: "Silver Lender", countiesServed: ["Adams", "Arapahoe", "Denver", "Weld"], notes: "Serves Hispanic and Latino households." },
+  { id: "brett-baird", name: "Brett Baird", company: "CrossCountry Mortgage, LLC", phone: "303.548.7334", email: "brett.baird@ccm.com", nmls: "297737", award: "Silver Lender", languages: "Spanish", countiesServed: ["Adams", "Arapahoe", "Denver", "El Paso", "Weld"], notes: "Serves Hispanic and Latino households." },
+  { id: "hilda-gonzalez", name: "Hilda Gonzalez", company: "CrossCountry Mortgage, LLC", phone: "970.837.5792", email: "hilda.gonzalez@ccm.com", nmls: "840809", languages: "Spanish", countiesServed: ["Adams", "Arapahoe", "Denver", "Weld"], notes: "Serves Hispanic and Latino households." },
+  { id: "shelby-wardlaw", name: "Shelby Wardlaw", company: "CrossCountry Mortgage, LLC", phone: "970.673.6881", email: "shelby.wardlaw@ccm.com", nmls: "1458807", award: "Silver Lender", languages: "Spanish", countiesServed: ["Adams", "Arapahoe", "Denver", "Jefferson", "Larimer", "Morgan", "Phillips", "Weld"], notes: "Serves Hispanic and Latino and rural households." },
+  { id: "christina-schwarz", name: "Christina Schwarz", company: "Encompass Lending Group, L.P.", phone: "303.435.6273", email: "cschwarz@encompasslending.com", nmls: "211884", award: "Gold Lender", countiesServed: ["Adams", "Arapahoe", "Boulder", "Denver", "Douglas", "El Paso", "Elbert", "Jefferson", "Larimer", "Mesa", "Morgan", "Otero", "Pueblo", "Teller", "Weld"], notes: "Serves several household groups across a broad Colorado footprint." },
+  { id: "ryan-goodnight", name: "Ryan Goodnight", company: "Envoy Mortgage, LTD", phone: "720.735.2831", email: "ryan.goodnight@envoymortgage.com", nmls: "226604", award: "Gold Lender", countiesServed: ["Adams", "Arapahoe", "Boulder", "Denver", "Douglas", "El Paso", "Garfield", "Grand", "Jefferson", "Larimer", "Mesa", "Morgan", "Park", "Pueblo", "Teller", "Weld"], notes: "Serves Black and African American, API/NHPI, and rural households." },
+  { id: "manny-dominguez", name: "Manny Dominguez", company: "Everett Financial Inc. dba Supreme Lending", phone: "720.485.8683", email: "Manny.Dominguez@supremelending.com", nmls: "1379957", award: "Bronze Lender", languages: "Spanish", countiesServed: ["Adams", "Arapahoe", "Denver", "Jefferson", "Washington", "Weld"], notes: "Serves Hispanic and Latino households." },
+  { id: "steven-tilghman", name: "Steven Tilghman", company: "Everett Financial Inc. dba Supreme Lending", phone: "720.541.8246", email: "Steven.Tilghman@SupremeLending.com", nmls: "879733", award: "Silver Lender", countiesServed: ["Adams", "Arapahoe", "Denver", "Elbert", "Huerfano", "Jefferson"], notes: "LAG member; serves Black and African American and rural households." },
+  { id: "ashley-hickmon", name: "Ashley Hickmon", company: "Fairway Independent Mortgage Corporation", phone: "303.669.8454", email: "ashley.hickmon@fairwaymc.com", nmls: "250615", award: "Silver Lender", languages: "Spanish", countiesServed: ["Adams", "Arapahoe", "Denver", "Douglas", "El Paso", "Elbert", "Jefferson", "Larimer", "Morgan", "Pueblo"], notes: "Serves Black and African American, Hispanic and Latino, and rural households." },
+  { id: "blanca-henriquez", name: "Blanca Henriquez", company: "Guild Mortgage Company LLC", phone: "720.394.1607", email: "bhenriquez@guildmortgage.net", nmls: "1210828", award: "Bronze Lender", countiesServed: ["Adams", "Arapahoe", "Denver", "Douglas", "El Paso", "Jefferson", "Larimer", "Weld"], notes: "Serves Hispanic and Latino households." },
+  { id: "david-hosterman", name: "David Hosterman", company: "Guild Mortgage Company LLC", phone: "720.260.9814", email: "dhosterman@guildmortgage.net", nmls: "220562", award: "Gold Lender", countiesServed: ["Adams", "Arapahoe", "Denver", "Douglas", "El Paso", "Jefferson", "Larimer", "Phillips", "Washington", "Weld", "Yuma"], notes: "Serves several household groups including individuals with disabilities." },
+  { id: "eric-ruiz", name: "Eric Ruiz", company: "Guild Mortgage Company LLC", phone: "720.990.1984", email: "eric.ruiz@guildmortgage.net", nmls: "1526773", award: "Bronze Lender", languages: "Spanish", countiesServed: ["Adams", "Boulder", "Denver", "Garfield", "Larimer", "Logan", "Mesa", "Phillips", "Washington", "Weld"], notes: "Serves Hispanic and Latino, rural, and disability-eligible households." },
+  { id: "michael-dozois", name: "Michael Dozois", company: "Loan Simple, Inc.", phone: "303.565.2606", email: "mdozois@loansimple.com", nmls: "273744", award: "Gold Lender", countiesServed: ["Adams", "Arapahoe", "Boulder", "Delta", "Denver", "Douglas", "El Paso", "Fremont", "Garfield", "Jefferson", "Morgan", "Otero", "Pueblo", "Weld"], notes: "LAG member; serves Black and African American, Hispanic and Latino, and rural households." },
+  { id: "nathan-dozois", name: "Nathan Dozois", company: "Loan Simple, Inc.", email: "ndozois@loansimple.com", nmls: "6809", award: "Gold Lender", countiesServed: ["Adams", "Arapahoe", "Boulder", "Broomfield", "Denver", "Douglas", "El Paso", "Elbert", "Fremont", "Garfield", "Jefferson", "Larimer", "Mesa", "Pueblo", "Weld"], notes: "Broad statewide county coverage from the provided list." },
+  { id: "jake-sullivan", name: "Jake Sullivan", company: "Lower, LLC dba Universal Lending Home Loans", phone: "720.394.7367", email: "jsullivan@powertpo.com", nmls: "2226233", award: "Gold Lender", countiesServed: ["Adams", "Arapahoe", "Boulder", "Denver", "Douglas", "El Paso", "Fremont", "Jefferson", "La Plata", "Larimer", "Morgan", "Park", "Pueblo", "Weld"], notes: "Serves several household groups across multiple counties." },
+  { id: "kelly-morgan", name: "Kelly Morgan", company: "Lower, LLC dba Universal Lending Home Loans", phone: "303.506.5761", email: "kmorgan@powertpo.com", nmls: "1153630", award: "Gold Lender", countiesServed: ["Adams", "Arapahoe", "Delta", "Denver", "El Paso", "Jefferson", "Mesa", "Montrose", "Pueblo", "Weld"], notes: "LAG member; serves multiple household groups." },
+  { id: "michael-miller", name: "Michael Miller", company: "Paramount Residential Mortgage Group Inc", phone: "303.957.8390", email: "Mike.Miller@PRMG.NET", nmls: "157535", award: "Gold Lender", countiesServed: ["Adams", "Arapahoe", "Denver", "Douglas", "El Paso", "Elbert", "Fremont", "Garfield", "Jefferson", "Larimer", "Mesa", "Pueblo", "Teller", "Weld"], notes: "Serves several household groups across a broad Colorado footprint." },
+  { id: "nicholas-barta", name: "Nicholas J Barta", company: "Golden Empire Mortgage, Inc.", phone: "303.709.9625", email: "nbarta@securityff.com", nmls: "25540", award: "Gold Lender", countiesServed: ["Adams", "Arapahoe", "Denver", "El Paso", "Fremont", "Garfield", "Jefferson", "Larimer", "Logan", "Mesa", "Morgan", "Pueblo", "Weld"], notes: "Serves several household groups including individuals with disabilities." },
+];
+
+const realtors: Contact[] = [
+  { id: "jackie-aguilar", name: "Jackie Aguilar", company: "Invalesco", phone: "(720) 347-3071", email: "jackie@invalescore.com", languages: "English, Spanish", website: "https://www.invalescore.com/jackie-aguilar", specialties: ["DPA programs"], countiesServed: ["all"] },
+  { id: "nicole-aguilar", name: "Nicole Aguilar", company: "Invalesco", phone: "(303) 335-9491", email: "nicole@purpleagent.co", languages: "English", website: "https://www.invalescore.com/nicole-aguilar", specialties: ["LGBTQ+", "Neurodiverse buyers", "DPA programs"], countiesServed: ["all"] },
+  { id: "nadiya-alsayed", name: "Nadiya Alsayed", company: "Invalesco", phone: "(303) 748-6017", email: "nadiya@invalescore.com", languages: "English", website: "https://www.invalescore.com/nadiya-alsayed", specialties: ["DPA programs"], countiesServed: ["all"] },
+  { id: "merima-brkic", name: "Merima Brkic", company: "Invalesco", phone: "(303) 304-3888", email: "merima@yourhausrealty.com", languages: "English", website: "https://www.invalescore.com/merima-brkic", specialties: ["Affordable housing", "DPA programs"], countiesServed: ["all"] },
+  { id: "beth-concha", name: "Beth Concha", company: "Invalesco", phone: "(303) 564-7763", email: "beth@bethsellsdenver.com", languages: "English", website: "https://www.invalescore.com/beth-concha", specialties: ["Affordable housing", "DPA programs"], countiesServed: ["all"] },
+  { id: "aaron-gailey", name: "Aaron Gailey", company: "Invalesco", phone: "(303) 518-4262", email: "aaron@invalescore.com", languages: "English", website: "https://www.invalescore.com/aaron-gailey", specialties: ["First-time buyers", "DPA programs"], countiesServed: ["all"] },
+  { id: "nancy-gomez-miramontes", name: "Nancy Gomez-Miramontes", company: "Invalesco", phone: "(720) 335-0457", email: "nancy@invalescoRE.com", languages: "English, Spanish", website: "https://www.invalescore.com/nancy-gomez-miramontes", specialties: ["DPA programs"], countiesServed: ["all"] },
+  { id: "crystalle-guss", name: "Crystalle Guss", company: "Invalesco", phone: "(720) 588-3068", email: "crystalle@invalescoRE.com", languages: "English", website: "https://www.invalescore.com/crystalle-guss", specialties: ["First-time buyers", "DPA programs"], countiesServed: ["all"] },
+  { id: "kayla-haley", name: "Kayla Haley", company: "Invalesco", phone: "(602) 702-7199", email: "KaylaCollectiveLLC@gmail.com", languages: "English", website: "https://www.invalescore.com/kayla-haley", specialties: ["DPA programs"], countiesServed: ["all"] },
+  { id: "christie-held", name: "Christie Held", company: "Invalesco", email: "Christie@invalescore.com", languages: "English", website: "https://www.invalescore.com/christie-held", specialties: ["First-time buyers", "DPA programs"], countiesServed: ["all"] },
+  { id: "ellie-johnson", name: "Ellie Johnson", company: "Invalesco", phone: "(720) 304-5551", email: "ellie@invalescore.com", languages: "English", website: "https://www.invalescore.com/ellie-johnson", specialties: ["First-time buyers", "DPA programs"], countiesServed: ["all"] },
+  { id: "audra-richmond", name: "Audra Richmond", company: "Invalesco", phone: "(720) 427-8201", email: "audra@invalescoRE.com", languages: "English", website: "https://www.invalescore.com/audra-richmond", specialties: ["First-time buyers", "DPA programs"], countiesServed: ["all"] },
+  { id: "angie-sudberry", name: "Angie Sudberry", company: "Invalesco", phone: "(720) 435-2183", email: "angie@invalescoRE.com", languages: "English", website: "https://www.invalescore.com/angie-sudberry", specialties: ["DPA programs"], countiesServed: ["all"] },
+  { id: "vianney-yamada", name: "Vianney Yamada", company: "Invalesco", phone: "(720) 717-3547", email: "realtorvianney@gmail.com", languages: "English", website: "https://www.invalescore.com/vianney-yamada", specialties: ["First-time buyers", "DPA programs"], countiesServed: ["all"] },
+  { id: "jo-untiedt", name: "Jo Untiedt", company: "Affordable Housing Consultants", phone: "(303) 437-0131", email: "jo@affordablehousingconsultants.org", languages: "English", website: "https://www.affordablehousingconsultants.org/contact-us.html", specialties: ["Affordable housing", "DPA programs"], countiesServed: ["all"] },
+  { id: "nastasha-vasquez", name: "Nastasha Vasquez", company: "Modern Lines Realty Group", phone: "(720) 557-2811", email: "modernlinesllc@gmail.com", languages: "English", website: "https://www.modernlinescolorado.com/", specialties: ["Affordable housing", "DPA programs"], countiesServed: ["all"] },
+  { id: "cleo-lewis", name: "Cleo Lewis", company: "Central Park Mortgage", phone: "(720) 552-1215", email: "home@centralparkmortgage.co", languages: "English", website: "https://www.centralparkmortgage.co/", specialties: ["Affordable housing", "DPA programs"], countiesServed: ["all"] },
+  { id: "victoria-holmes", name: "Victoria Holmes", company: "City Park Realty", phone: "(303) 377-1488", email: "voh111@msn.com", languages: "English", website: "https://cityparkrealty.com/", specialties: ["Affordable housing", "DPA programs"], countiesServed: ["all"] },
+  { id: "angela-hutton-hall", name: "Angela Hutton-Hall", company: "City Park Realty", phone: "(303) 377-1488", email: "a.hutton@cityparkrealty.com", languages: "English", website: "https://cityparkrealty.com/", specialties: ["Affordable housing", "DPA programs"], countiesServed: ["all"] },
+  { id: "muriel-williams-thompson", name: "Muriel Williams-Thompson", company: "Town and Country Realty of Denver", phone: "(303) 789-9494", email: "murieldwilliams@yahoo.com", languages: "English", website: "https://townandcountryrealtyofdenver.com/about-muriel-williams-thompson/", specialties: ["Affordable housing", "DPA programs"], countiesServed: ["all"] },
+  { id: "maya-whitney", name: "Maya Whitney", company: "HomeSmart Realty Group", phone: "(720) 628-5399", email: "ladyrealestate5280@gmail.com", languages: "English", website: "https://homesmart.com/real-estate-agent/hs0017/maya-whitney/ec8e56ab-3e53-45bb-b288-0ed7df1fef68", specialties: ["Affordable housing", "DPA programs"], countiesServed: ["all"] },
+  { id: "eriqueca-sanders", name: "Eriqueca Sanders", company: "303 Realty Group", phone: "(303) 495-2125", email: "eriqueca@303realty.net", languages: "English", website: "https://303realtygroup.com/", specialties: ["Affordable housing", "DPA programs"], countiesServed: ["all"] },
+  { id: "matt-stewart", name: "Matt Stewart", company: "Coldwell Banker Realty North Metro", phone: "(720) 587-5129", email: "matt.stewart@cbrealty.com", languages: "English", website: "https://mattstewarthomes.com/", specialties: ["Affordable housing", "DPA programs"], countiesServed: ["all"] },
+  { id: "janine-kempfer", name: "Janine Kempfer", company: "Prime Mortgage", phone: "(303) 587-7775", email: "Janine@primemortgage.biz", languages: "English", website: "https://calendly.com/prime-mortgage", specialties: ["Affordable housing", "Lender services", "DPA programs"], countiesServed: ["all"] },
+  { id: "monica-askew", name: "Monica Askew", company: "Equity Colorado Real Estate", phone: "(720) 253-8983", email: "info@denverrealtormonica.com", languages: "English", website: "https://www.equitycoloradorealestate.com/agent/monica-askew", specialties: ["Affordable housing", "DPA programs"], countiesServed: ["all"] },
+  { id: "tanya-vidal", name: "Tanya Vidal", company: "Town and Country Realty of Denver", phone: "(720) 427-7619", email: "vidalt_@hotmail.com", languages: "English, Spanish", website: "https://tanyavidalre.com/about", specialties: ["Affordable housing", "DPA programs"], countiesServed: ["all"] },
+  { id: "anthony-rael", name: "Anthony Rael", company: "RE/MAX Alliance - Denver", phone: "(303) 520-3179", languages: "English", website: "https://anthonyrael.com/", specialties: ["First-time buyers", "Affordable housing", "VA loans", "DPA programs"], countiesServed: ["all"] },
+  { id: "nathan-hart", name: "Nathan Hart", company: "HomeSmart Realty Group", phone: "(303) 564-4055", email: "RealtorNathan@yahoo.com", languages: "English", website: "https://www.nathansellsdenver.com/", specialties: ["First-time buyers", "Affordable housing", "DPA programs"], countiesServed: ["all"] },
+  { id: "christine-gwinnup", name: "Christine Gwinnup", company: "Lpt Realty", phone: "(303) 709-4262", email: "helittleladyinc@gmail.com", languages: "English", website: "https://www.thelittleladysellshomes.com/", specialties: ["First-time buyers", "VA loans", "DPA programs"], countiesServed: ["Larimer", "Weld"] },
+  { id: "heidi-stiteler", name: "Heidi Stiteler", company: "Coldwell Banker (Cherry Creek North)", phone: "(303) 222-0027", email: "contact@firsttimehomebuyersdenverco.com", languages: "English", website: "https://firsttimehomebuyersdenverco.com/", specialties: ["First-time buyers", "DPA programs"], countiesServed: ["all"] },
+  { id: "susie-cortright", name: "Susie Cortright", company: "RE/MAX Properties of the Summit", phone: "(970) 389-8338", email: "susie@thecortrightgroup.com", languages: "English", website: "https://www.susiecortright.com/", specialties: ["Affordable housing", "DPA programs"], countiesServed: ["Summit"] },
+];
+
 const initialAnswers: Answers = {
   location: [],
   income: "",
@@ -425,6 +617,7 @@ const initialAnswers: Answers = {
   bedrooms: 3,
   creditScore: 720,
   assistanceProgram: "none",
+  affordablePrograms: [],
 };
 
 const questions: Question[] = [
@@ -432,7 +625,7 @@ const questions: Question[] = [
     key: "location",
     eyebrow: "Colorado market",
     title: "Where are you considering buying?",
-    description: "Start typing a Colorado neighborhood, city, county, community, or district.",
+    description: "Start typing a Colorado neighborhood, city, or county.",
     type: "location",
   },
   {
@@ -468,9 +661,9 @@ const questions: Question[] = [
   },
   {
     key: "assistanceProgram",
-    eyebrow: "Down payment help",
-    title: "Which assistance program would you like to explore?",
-    description: "Choose a down payment assistance option to see how it changes the estimated cash needed for your target home.",
+    eyebrow: "Buying help",
+    title: "Which assistance path would you like to explore?",
+    description: "Choose down payment assistance or an affordable ownership program to see how it changes the plan for your target home.",
     type: "assistance",
   },
 ];
@@ -480,50 +673,68 @@ type StepRoute = {
   showIntro: boolean;
   showExplanation: boolean;
   showSummary: boolean;
+  contactPicker: "lender" | "realtor" | null;
 };
 
 function getQuestionStepName(question: Question) {
   return question.key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 }
 
-function getStepName(step: number, showIntro: boolean, showExplanation: boolean, showSummary: boolean) {
+function getStepName(step: number, showIntro: boolean, showExplanation: boolean, showSummary: boolean, contactPicker: "lender" | "realtor" | null) {
   if (showIntro) return "what-this-is";
+  if (contactPicker) return `select-${contactPicker}`;
   if (showSummary) return "summary-next-steps";
 
   const boundedStep = Math.max(0, Math.min(questions.length - 1, step));
   const questionName = getQuestionStepName(questions[boundedStep]);
-  return showExplanation ? `${questionName}-impact` : questionName;
+  return showExplanation && questions[boundedStep].key !== "location" ? `${questionName}-impact` : questionName;
 }
 
 function getRouteFromStepName(stepName: string | null): StepRoute {
   const normalizedStepName = stepName?.trim().toLowerCase() ?? "";
 
   if (!normalizedStepName || normalizedStepName === "what-this-is" || normalizedStepName === "intro") {
-    return { step: 0, showIntro: true, showExplanation: false, showSummary: false };
+    return { step: 0, showIntro: true, showExplanation: false, showSummary: false, contactPicker: null };
+  }
+
+  if (normalizedStepName === "select-lender" || normalizedStepName === "lenders") {
+    return { step: questions.length - 1, showIntro: false, showExplanation: true, showSummary: true, contactPicker: "lender" };
+  }
+
+  if (normalizedStepName === "select-realtor" || normalizedStepName === "realtors") {
+    return { step: questions.length - 1, showIntro: false, showExplanation: true, showSummary: true, contactPicker: "realtor" };
+  }
+
+  if (normalizedStepName === "ways-to-make-buying-work" || normalizedStepName === "buying-alternatives") {
+    return { step: questions.length - 1, showIntro: false, showExplanation: true, showSummary: true, contactPicker: null };
   }
 
   if (normalizedStepName === "summary-next-steps" || normalizedStepName === "summary") {
-    return { step: questions.length - 1, showIntro: false, showExplanation: true, showSummary: true };
+    return { step: questions.length - 1, showIntro: false, showExplanation: true, showSummary: true, contactPicker: null };
   }
 
   if (normalizedStepName === "down-payment-assistance") {
-    return { step: questions.length - 1, showIntro: false, showExplanation: false, showSummary: false };
+    return { step: questions.length - 1, showIntro: false, showExplanation: false, showSummary: false, contactPicker: null };
   }
 
   const isImpactStep = normalizedStepName.endsWith("-impact");
   const questionName = isImpactStep ? normalizedStepName.slice(0, -"-impact".length) : normalizedStepName;
   const questionIndex = questions.findIndex((question) => getQuestionStepName(question) === questionName);
 
-  if (questionIndex === -1) return { step: 0, showIntro: true, showExplanation: false, showSummary: false };
+  if (questionIndex === -1) return { step: 0, showIntro: true, showExplanation: false, showSummary: false, contactPicker: null };
 
-  return { step: questionIndex, showIntro: false, showExplanation: isImpactStep, showSummary: false };
+  if (isImpactStep && questions[questionIndex].key === "location") {
+    return { step: Math.min(questions.length - 1, questionIndex + 1), showIntro: false, showExplanation: false, showSummary: false, contactPicker: null };
+  }
+
+  return { step: questionIndex, showIntro: false, showExplanation: isImpactStep, showSummary: false, contactPicker: null };
 }
 
 function getRouteFromUrl() {
   return getRouteFromStepName(new URLSearchParams(window.location.search).get("step"));
 }
 
-const coloradoLocations = [
+const baseColoradoLocations = [
   { name: "Applewood, Jefferson County", multiplier: 1.16 },
   { name: "Arvada Center, Jefferson County", multiplier: 1.08 },
   { name: "Aspen Core, Pitkin County", multiplier: 2.45 },
@@ -636,6 +847,7 @@ const coloradoLocations = [
   { name: "Jefferson County", multiplier: 1.18 },
   { name: "La Plata County", multiplier: 1.1 },
   { name: "Larimer County", multiplier: 1.02 },
+  { name: "Lincoln County", multiplier: 0.68 },
   { name: "Mesa County", multiplier: 0.76 },
   { name: "Pitkin County", multiplier: 2.45 },
   { name: "Pueblo County", multiplier: 0.66 },
@@ -681,6 +893,7 @@ const coloradoLocations = [
   { name: "Lafayette, Boulder County", multiplier: 1.26 },
   { name: "Lakewood, Jefferson County", multiplier: 1.12 },
   { name: "Littleton, Arapahoe County", multiplier: 1.12 },
+  { name: "Limon, Lincoln County", multiplier: 0.68 },
   { name: "Longmont, Boulder County", multiplier: 1.2 },
   { name: "Loveland, Larimer County", multiplier: 0.98 },
   { name: "Louisville, Boulder County", multiplier: 1.34 },
@@ -692,6 +905,7 @@ const coloradoLocations = [
   { name: "Northglenn, Adams County", multiplier: 0.96 },
   { name: "Parker, Douglas County", multiplier: 1.2 },
   { name: "Pueblo, Pueblo County", multiplier: 0.66 },
+  { name: "Rifle, Garfield County", multiplier: 0.86 },
   { name: "Salida, Chaffee County", multiplier: 1.1 },
   { name: "Silverthorne, Summit County", multiplier: 1.48 },
   { name: "Steamboat Springs, Routt County", multiplier: 1.42 },
@@ -704,6 +918,287 @@ const coloradoLocations = [
   { name: "Windsor, Weld County", multiplier: 0.98 },
 ];
 
+const coloradoMunicipalityLocations = [
+  { name: "Aguilar, Las Animas County", multiplier: 0.68 },
+  { name: "Akron, Washington County", multiplier: 0.68 },
+  { name: "Alamosa, Alamosa County", multiplier: 0.72 },
+  { name: "Alma, Park County", multiplier: 0.9 },
+  { name: "Antonito, Conejos County", multiplier: 0.68 },
+  { name: "Arriba, Lincoln County", multiplier: 0.68 },
+  { name: "Arvada, Jefferson County", multiplier: 1.18 },
+  { name: "Aspen, Pitkin County", multiplier: 2.45 },
+  { name: "Ault, Weld County", multiplier: 0.82 },
+  { name: "Aurora, Arapahoe County", multiplier: 1.08 },
+  { name: "Avon, Eagle County", multiplier: 1.95 },
+  { name: "Basalt, Eagle County", multiplier: 1.95 },
+  { name: "Bayfield, La Plata County", multiplier: 1.1 },
+  { name: "Bennett, Adams County", multiplier: 1.0 },
+  { name: "Berthoud, Larimer County", multiplier: 1.02 },
+  { name: "Bethune, Kit Carson County", multiplier: 0.66 },
+  { name: "Black Hawk, Gilpin County", multiplier: 1.08 },
+  { name: "Blanca, Costilla County", multiplier: 0.66 },
+  { name: "Blue River, Summit County", multiplier: 1.72 },
+  { name: "Bonanza, Saguache County", multiplier: 0.7 },
+  { name: "Boone, Pueblo County", multiplier: 0.66 },
+  { name: "Boulder, Boulder County", multiplier: 1.62 },
+  { name: "Bow Mar, Arapahoe County", multiplier: 1.08 },
+  { name: "Branson, Las Animas County", multiplier: 0.68 },
+  { name: "Breckenridge, Summit County", multiplier: 1.72 },
+  { name: "Brighton, Adams County", multiplier: 1.0 },
+  { name: "Brookside, Fremont County", multiplier: 0.72 },
+  { name: "Broomfield, Broomfield County", multiplier: 1.28 },
+  { name: "Brush, Morgan County", multiplier: 0.72 },
+  { name: "Buena Vista, Chaffee County", multiplier: 1.12 },
+  { name: "Burlington, Kit Carson County", multiplier: 0.66 },
+  { name: "Calhan, El Paso County", multiplier: 0.92 },
+  { name: "Campo, Baca County", multiplier: 0.62 },
+  { name: "Cañon City, Fremont County", multiplier: 0.72 },
+  { name: "Carbonate, Garfield County", multiplier: 1.0 },
+  { name: "Carbondale, Garfield County", multiplier: 1.0 },
+  { name: "Castle Pines, Douglas County", multiplier: 1.34 },
+  { name: "Castle Rock, Douglas County", multiplier: 1.34 },
+  { name: "Cedaredge, Delta County", multiplier: 0.72 },
+  { name: "Centennial, Arapahoe County", multiplier: 1.08 },
+  { name: "Center, Saguache County", multiplier: 0.7 },
+  { name: "Central City, Gilpin County", multiplier: 1.08 },
+  { name: "Cheraw, Otero County", multiplier: 0.64 },
+  { name: "Cherry Hills Village, Arapahoe County", multiplier: 1.08 },
+  { name: "Cheyenne Wells, Cheyenne County", multiplier: 0.62 },
+  { name: "Coal Creek, Fremont County", multiplier: 0.72 },
+  { name: "Cokedale, Las Animas County", multiplier: 0.68 },
+  { name: "Collbran, Mesa County", multiplier: 0.76 },
+  { name: "Colorado Springs, El Paso County", multiplier: 0.92 },
+  { name: "Columbine Valley, Arapahoe County", multiplier: 1.08 },
+  { name: "Commerce City, Adams County", multiplier: 1.0 },
+  { name: "Cortez, Montezuma County", multiplier: 0.8 },
+  { name: "Craig, Moffat County", multiplier: 0.7 },
+  { name: "Crawford, Delta County", multiplier: 0.72 },
+  { name: "Creede, Mineral County", multiplier: 0.84 },
+  { name: "Crested Butte, Gunnison County", multiplier: 1.18 },
+  { name: "Crestone, Saguache County", multiplier: 0.7 },
+  { name: "Cripple Creek, Teller County", multiplier: 0.9 },
+  { name: "Crook, Logan County", multiplier: 0.68 },
+  { name: "Crowley, Crowley County", multiplier: 0.62 },
+  { name: "Dacono, Weld County", multiplier: 0.82 },
+  { name: "De Beque, Mesa County", multiplier: 0.76 },
+  { name: "Deer Trail, Arapahoe County", multiplier: 1.08 },
+  { name: "Del Norte, Rio Grande County", multiplier: 0.7 },
+  { name: "Delta, Delta County", multiplier: 0.72 },
+  { name: "Denver, Denver County", multiplier: 1.18 },
+  { name: "Dillon, Summit County", multiplier: 1.72 },
+  { name: "Dinosaur, Moffat County", multiplier: 0.7 },
+  { name: "Dolores, Montezuma County", multiplier: 0.8 },
+  { name: "Dove Creek, Dolores County", multiplier: 0.78 },
+  { name: "Durango, La Plata County", multiplier: 1.1 },
+  { name: "Eads, Kiowa County", multiplier: 0.62 },
+  { name: "Eagle, Eagle County", multiplier: 1.95 },
+  { name: "Eaton, Weld County", multiplier: 0.82 },
+  { name: "Eckley, Yuma County", multiplier: 0.68 },
+  { name: "Edgewater, Jefferson County", multiplier: 1.18 },
+  { name: "Elizabeth, Elbert County", multiplier: 0.98 },
+  { name: "Empire, Clear Creek County", multiplier: 1.08 },
+  { name: "Englewood, Arapahoe County", multiplier: 1.08 },
+  { name: "Erie, Weld County", multiplier: 0.82 },
+  { name: "Estes Park, Larimer County", multiplier: 1.02 },
+  { name: "Evans, Weld County", multiplier: 0.82 },
+  { name: "Fairplay, Park County", multiplier: 0.9 },
+  { name: "Federal Heights, Adams County", multiplier: 1.0 },
+  { name: "Firestone, Weld County", multiplier: 0.82 },
+  { name: "Flagler, Kit Carson County", multiplier: 0.66 },
+  { name: "Fleming, Logan County", multiplier: 0.68 },
+  { name: "Florence, Fremont County", multiplier: 0.72 },
+  { name: "Fort Collins, Larimer County", multiplier: 1.02 },
+  { name: "Fort Lupton, Weld County", multiplier: 0.82 },
+  { name: "Fort Morgan, Morgan County", multiplier: 0.72 },
+  { name: "Fountain, El Paso County", multiplier: 0.92 },
+  { name: "Fowler, Otero County", multiplier: 0.64 },
+  { name: "Foxfield, Arapahoe County", multiplier: 1.08 },
+  { name: "Fraser, Grand County", multiplier: 1.16 },
+  { name: "Frederick, Weld County", multiplier: 0.82 },
+  { name: "Frisco, Summit County", multiplier: 1.72 },
+  { name: "Fruita, Mesa County", multiplier: 0.76 },
+  { name: "Garden City, Weld County", multiplier: 0.82 },
+  { name: "Genoa, Lincoln County", multiplier: 0.68 },
+  { name: "Georgetown, Clear Creek County", multiplier: 1.08 },
+  { name: "Gilcrest, Weld County", multiplier: 0.82 },
+  { name: "Glendale, Arapahoe County", multiplier: 1.08 },
+  { name: "Glenwood Springs, Garfield County", multiplier: 1.0 },
+  { name: "Golden, Jefferson County", multiplier: 1.18 },
+  { name: "Granada, Prowers County", multiplier: 0.64 },
+  { name: "Granby, Grand County", multiplier: 1.16 },
+  { name: "Grand Junction, Mesa County", multiplier: 0.76 },
+  { name: "Grand Lake, Grand County", multiplier: 1.16 },
+  { name: "Greeley, Weld County", multiplier: 0.82 },
+  { name: "Green Mountain Falls, El Paso County", multiplier: 0.92 },
+  { name: "Greenwood Village, Arapahoe County", multiplier: 1.08 },
+  { name: "Grover, Weld County", multiplier: 0.82 },
+  { name: "Gunnison, Gunnison County", multiplier: 1.18 },
+  { name: "Gypsum, Eagle County", multiplier: 1.95 },
+  { name: "Hartman, Prowers County", multiplier: 0.64 },
+  { name: "Haswell, Kiowa County", multiplier: 0.62 },
+  { name: "Haxtun, Phillips County", multiplier: 0.68 },
+  { name: "Hayden, Routt County", multiplier: 1.42 },
+  { name: "Hillrose, Morgan County", multiplier: 0.72 },
+  { name: "Holly, Prowers County", multiplier: 0.64 },
+  { name: "Holyoke, Phillips County", multiplier: 0.68 },
+  { name: "Hooper, Alamosa County", multiplier: 0.72 },
+  { name: "Hot Sulphur Springs, Grand County", multiplier: 1.16 },
+  { name: "Hotchkiss, Delta County", multiplier: 0.72 },
+  { name: "Hudson, Weld County", multiplier: 0.82 },
+  { name: "Hugo, Lincoln County", multiplier: 0.68 },
+  { name: "Idaho Springs, Clear Creek County", multiplier: 1.08 },
+  { name: "Ignacio, La Plata County", multiplier: 1.1 },
+  { name: "Iliff, Logan County", multiplier: 0.68 },
+  { name: "Jamestown, Boulder County", multiplier: 1.62 },
+  { name: "Johnstown, Weld County", multiplier: 0.82 },
+  { name: "Julesburg, Sedgwick County", multiplier: 0.66 },
+  { name: "Keenesburg, Weld County", multiplier: 0.82 },
+  { name: "Kersey, Weld County", multiplier: 0.82 },
+  { name: "Keystone, Summit County", multiplier: 1.72 },
+  { name: "Kim, Las Animas County", multiplier: 0.68 },
+  { name: "Kiowa, Elbert County", multiplier: 0.98 },
+  { name: "Kit Carson, Cheyenne County", multiplier: 0.62 },
+  { name: "Kremmling, Grand County", multiplier: 1.16 },
+  { name: "La Jara, Conejos County", multiplier: 0.68 },
+  { name: "La Junta, Otero County", multiplier: 0.64 },
+  { name: "La Veta, Huerfano County", multiplier: 0.66 },
+  { name: "Lafayette, Boulder County", multiplier: 1.62 },
+  { name: "Lake City, Hinsdale County", multiplier: 0.92 },
+  { name: "Lakeside, Jefferson County", multiplier: 1.18 },
+  { name: "Lakewood, Jefferson County", multiplier: 1.18 },
+  { name: "Lamar, Prowers County", multiplier: 0.64 },
+  { name: "Larkspur, Douglas County", multiplier: 1.34 },
+  { name: "Las Animas, Bent County", multiplier: 0.62 },
+  { name: "LaSalle, Weld County", multiplier: 0.82 },
+  { name: "Leadville, Lake County", multiplier: 0.92 },
+  { name: "Limon, Lincoln County", multiplier: 0.68 },
+  { name: "Littleton, Arapahoe County", multiplier: 1.08 },
+  { name: "Lochbuie, Weld County", multiplier: 0.82 },
+  { name: "Log Lane Village, Morgan County", multiplier: 0.72 },
+  { name: "Lone Tree, Douglas County", multiplier: 1.34 },
+  { name: "Longmont, Boulder County", multiplier: 1.62 },
+  { name: "Louisville, Boulder County", multiplier: 1.62 },
+  { name: "Loveland, Larimer County", multiplier: 1.02 },
+  { name: "Lyons, Boulder County", multiplier: 1.62 },
+  { name: "Manassa, Conejos County", multiplier: 0.68 },
+  { name: "Mancos, Montezuma County", multiplier: 0.8 },
+  { name: "Manitou Springs, El Paso County", multiplier: 0.92 },
+  { name: "Manzanola, Otero County", multiplier: 0.64 },
+  { name: "Marble, Gunnison County", multiplier: 1.18 },
+  { name: "Mead, Weld County", multiplier: 0.82 },
+  { name: "Meeker, Rio Blanco County", multiplier: 0.74 },
+  { name: "Merino, Logan County", multiplier: 0.68 },
+  { name: "Milliken, Weld County", multiplier: 0.82 },
+  { name: "Minturn, Eagle County", multiplier: 1.95 },
+  { name: "Moffat, Saguache County", multiplier: 0.7 },
+  { name: "Monte Vista, Rio Grande County", multiplier: 0.7 },
+  { name: "Montezuma, Summit County", multiplier: 1.72 },
+  { name: "Montrose, Montrose County", multiplier: 0.84 },
+  { name: "Monument, El Paso County", multiplier: 0.92 },
+  { name: "Morrison, Jefferson County", multiplier: 1.18 },
+  { name: "Mount Crested Butte, Gunnison County", multiplier: 1.18 },
+  { name: "Mountain View, Jefferson County", multiplier: 1.18 },
+  { name: "Mountain Village, San Miguel County", multiplier: 1.5 },
+  { name: "Naturita, Montrose County", multiplier: 0.84 },
+  { name: "Nederland, Boulder County", multiplier: 1.62 },
+  { name: "New Castle, Garfield County", multiplier: 1.0 },
+  { name: "Northglenn, Adams County", multiplier: 1.0 },
+  { name: "Norwood, San Miguel County", multiplier: 1.5 },
+  { name: "Nucla, Montrose County", multiplier: 0.84 },
+  { name: "Nunn, Weld County", multiplier: 0.82 },
+  { name: "Oak Creek, Routt County", multiplier: 1.42 },
+  { name: "Olathe, Montrose County", multiplier: 0.84 },
+  { name: "Olney Springs, Crowley County", multiplier: 0.62 },
+  { name: "Ophir, San Miguel County", multiplier: 1.5 },
+  { name: "Orchard City, Delta County", multiplier: 0.72 },
+  { name: "Ordway, Crowley County", multiplier: 0.62 },
+  { name: "Otis, Washington County", multiplier: 0.68 },
+  { name: "Ouray, Ouray County", multiplier: 1.16 },
+  { name: "Ovid, Sedgwick County", multiplier: 0.66 },
+  { name: "Pagosa Springs, Archuleta County", multiplier: 0.92 },
+  { name: "Palisade, Mesa County", multiplier: 0.76 },
+  { name: "Palmer Lake, El Paso County", multiplier: 0.92 },
+  { name: "Paoli, Phillips County", multiplier: 0.68 },
+  { name: "Paonia, Delta County", multiplier: 0.72 },
+  { name: "Parachute, Garfield County", multiplier: 1.0 },
+  { name: "Parker, Douglas County", multiplier: 1.34 },
+  { name: "Peetz, Logan County", multiplier: 0.68 },
+  { name: "Pierce, Weld County", multiplier: 0.82 },
+  { name: "Pitkin, Gunnison County", multiplier: 1.18 },
+  { name: "Platteville, Weld County", multiplier: 0.82 },
+  { name: "Poncha Springs, Chaffee County", multiplier: 1.12 },
+  { name: "Pritchett, Baca County", multiplier: 0.62 },
+  { name: "Pueblo, Pueblo County", multiplier: 0.66 },
+  { name: "Ramah, El Paso County", multiplier: 0.92 },
+  { name: "Rangely, Rio Blanco County", multiplier: 0.74 },
+  { name: "Raymer, Weld County", multiplier: 0.82 },
+  { name: "Red Cliff, Eagle County", multiplier: 1.95 },
+  { name: "Rico, Dolores County", multiplier: 0.78 },
+  { name: "Ridgway, Ouray County", multiplier: 1.16 },
+  { name: "Rifle, Garfield County", multiplier: 1.0 },
+  { name: "Rockvale, Fremont County", multiplier: 0.72 },
+  { name: "Rocky Ford, Otero County", multiplier: 0.64 },
+  { name: "Romeo, Conejos County", multiplier: 0.68 },
+  { name: "Rye, Pueblo County", multiplier: 0.66 },
+  { name: "Saguache, Saguache County", multiplier: 0.7 },
+  { name: "Salida, Chaffee County", multiplier: 1.12 },
+  { name: "San Luis, Costilla County", multiplier: 0.66 },
+  { name: "Sanford, Conejos County", multiplier: 0.68 },
+  { name: "Sawpit, San Miguel County", multiplier: 1.5 },
+  { name: "Sedgwick, Sedgwick County", multiplier: 0.66 },
+  { name: "Seibert, Kit Carson County", multiplier: 0.66 },
+  { name: "Severance, Weld County", multiplier: 0.82 },
+  { name: "Sheridan, Arapahoe County", multiplier: 1.08 },
+  { name: "Sheridan Lake, Kiowa County", multiplier: 0.62 },
+  { name: "Silt, Garfield County", multiplier: 1.0 },
+  { name: "Silver Cliff, Custer County", multiplier: 0.82 },
+  { name: "Silver Plume, Clear Creek County", multiplier: 1.08 },
+  { name: "Silverthorne, Summit County", multiplier: 1.72 },
+  { name: "Silverton, San Juan County", multiplier: 0.9 },
+  { name: "Simla, Elbert County", multiplier: 0.98 },
+  { name: "Snowmass Village, Pitkin County", multiplier: 2.45 },
+  { name: "South Fork, Rio Grande County", multiplier: 0.7 },
+  { name: "Springfield, Baca County", multiplier: 0.62 },
+  { name: "Starkville, Las Animas County", multiplier: 0.68 },
+  { name: "Steamboat Springs, Routt County", multiplier: 1.42 },
+  { name: "Sterling, Logan County", multiplier: 0.68 },
+  { name: "Stratton, Kit Carson County", multiplier: 0.66 },
+  { name: "Sugar City, Crowley County", multiplier: 0.62 },
+  { name: "Superior, Boulder County", multiplier: 1.62 },
+  { name: "Swink, Otero County", multiplier: 0.64 },
+  { name: "Telluride, San Miguel County", multiplier: 1.5 },
+  { name: "Thornton, Adams County", multiplier: 1.0 },
+  { name: "Timnath, Larimer County", multiplier: 1.02 },
+  { name: "Trinidad, Las Animas County", multiplier: 0.68 },
+  { name: "Two Buttes, Baca County", multiplier: 0.62 },
+  { name: "Vail, Eagle County", multiplier: 1.95 },
+  { name: "Victor, Teller County", multiplier: 0.9 },
+  { name: "Vilas, Baca County", multiplier: 0.62 },
+  { name: "Vona, Kit Carson County", multiplier: 0.66 },
+  { name: "Walden, Jackson County", multiplier: 0.72 },
+  { name: "Walsenburg, Huerfano County", multiplier: 0.66 },
+  { name: "Walsh, Baca County", multiplier: 0.62 },
+  { name: "Ward, Boulder County", multiplier: 1.62 },
+  { name: "Wellington, Larimer County", multiplier: 1.02 },
+  { name: "Westcliffe, Custer County", multiplier: 0.82 },
+  { name: "Westminster, Adams County", multiplier: 1.0 },
+  { name: "Wheat Ridge, Jefferson County", multiplier: 1.18 },
+  { name: "Wiggins, Morgan County", multiplier: 0.72 },
+  { name: "Wiley, Prowers County", multiplier: 0.64 },
+  { name: "Williamsburg, Fremont County", multiplier: 0.72 },
+  { name: "Windsor, Weld County", multiplier: 0.82 },
+  { name: "Winter Park, Grand County", multiplier: 1.16 },
+  { name: "Woodland Park, Teller County", multiplier: 0.9 },
+  { name: "Wray, Yuma County", multiplier: 0.68 },
+  { name: "Yampa, Routt County", multiplier: 1.42 },
+  { name: "Yuma, Yuma County", multiplier: 0.68 },
+];
+
+const coloradoLocations = [...baseColoradoLocations, ...coloradoMunicipalityLocations].filter(
+  (locationOption, index, locations) => locations.findIndex((otherLocation) => otherLocation.name === locationOption.name) === index,
+);
+
+const householdSizeOptions = [1, 2, 3, 4, 5, 6, 7, 8];
 const bedroomOptions = [1, 2, 3, 4, 5, 6];
 const creditScoreOptions = [
   { label: "Needs work", range: "560 - 639", min: 560, max: 639, value: 620 },
@@ -738,6 +1233,13 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatPercent(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "percent",
     maximumFractionDigits: 0,
   }).format(value);
 }
@@ -784,6 +1286,28 @@ function getCountyNames(locations: string[]) {
   return Array.from(new Set(normalizeLocations(locations).map(getCountyName).filter(Boolean)));
 }
 
+function getContactById(contacts: Contact[], contactId: string | null) {
+  return contacts.find((contact) => contact.id === contactId) ?? null;
+}
+
+function contactMatchesCounty(contact: Contact, countyNames: string[]) {
+  if (contact.countiesServed.includes("all")) return true;
+  if (!countyNames.length) return true;
+  return contact.countiesServed.some((county) => countyNames.includes(county));
+}
+
+function sortContactsForLocations(contacts: Contact[], locations: string[]) {
+  const countyNames = getCountyNames(locations);
+
+  return [...contacts].sort((first, second) => {
+    const firstMatches = contactMatchesCounty(first, countyNames);
+    const secondMatches = contactMatchesCounty(second, countyNames);
+
+    if (firstMatches !== secondMatches) return firstMatches ? -1 : 1;
+    return first.name.localeCompare(second.name);
+  });
+}
+
 function getProgramCounties(programId: string) {
   const countyMap: Record<string, string[] | "statewide"> = {
     none: "statewide",
@@ -794,7 +1318,6 @@ function getProgramCounties(programId: string) {
     "chac-immediate": "statewide",
     "chac-deferral": "statewide",
     "chac-disability": "statewide",
-    "firstbank-idf": "statewide",
     "chfa-sectioneight-plus": "statewide",
     "good-neighbor-next-door": "statewide",
     "colorado-hfa1-plus": "statewide",
@@ -840,9 +1363,75 @@ function programMatchesAnyCounty(program: AssistanceProgram, countyNames: string
   return countyNames.some((countyName) => counties.includes(countyName));
 }
 
+function getHomeownershipProgramCounties(programId: string) {
+  const metroDenverCounties = ["Adams", "Arapahoe", "Boulder", "Broomfield", "Denver", "Douglas", "Jefferson"];
+  const countyMap: Record<string, string[] | "statewide"> = {
+    eclt: "statewide",
+    cclt: metroDenverCounties,
+    "habitat-metro-denver": metroDenverCounties,
+    thistle: ["Boulder"],
+    "chaffee-housing-trust": ["Chaffee"],
+    "goose-creek-clt": ["Boulder"],
+    "crhdc-contractor-build": ["Alamosa", "Conejos", "Costilla", "Mineral", "Rio Grande", "Saguache"],
+  };
+
+  return countyMap[programId] ?? "statewide";
+}
+
+function homeownershipProgramMatchesAnyCounty(program: HomeownershipProgram, countyNames: string[]) {
+  const counties = getHomeownershipProgramCounties(program.id);
+
+  if (counties === "statewide" || !countyNames.length) return true;
+  return countyNames.some((countyName) => counties.includes(countyName));
+}
+
+function homeownershipProgramMatchesEligibility(program: HomeownershipProgram, eligibility: EligibilityAnswers) {
+  const requirements = `${program.requirements} ${program.incomeLimit} ${program.benefits.join(" ")} ${program.drawbacks.join(" ")}`.toLowerCase();
+
+  if (eligibility.firstTimeBuyer === "no" && requirements.includes("first-time")) return false;
+  if (eligibility.firstGenerationBuyer === "no" && requirements.includes("first-generation")) return false;
+  if (eligibility.disabilityEligible === "no" && (requirements.includes("disability") || requirements.includes("disabled"))) return false;
+  if (eligibility.veteranEligible === "no" && requirements.includes("veteran")) return false;
+  if (eligibility.localRequirement === "no" && (requirements.includes("resident") || requirements.includes("worker") || requirements.includes("workforce") || requirements.includes("local"))) return false;
+
+  return true;
+}
+
 function estimateAssistanceAmount(program: AssistanceProgram, homePrice: number) {
   const grossAssistance = program.assistanceFixed ?? homePrice * program.assistanceRate;
   return program.assistanceCap ? Math.min(grossAssistance, program.assistanceCap) : grossAssistance;
+}
+
+function getRepaymentProfile(program: AssistanceProgram) {
+  const terms = `${program.title} ${program.assistance} ${program.bestFor} ${program.description} ${getProgramRequirements(program).join(" ")}`.toLowerCase();
+
+  if (program.id === "none") {
+    return { label: "Repayable", score: 0, tone: "repayable" };
+  }
+
+  if (terms.includes("grant") || terms.includes("forgivable") || terms.includes("discount")) {
+    return { label: "Non-repayable", score: 100, tone: "best" };
+  }
+
+  return { label: "Repayable", score: 20, tone: "repayable" };
+}
+
+function getAssistanceFit(program: AssistanceProgram, estimatedPrice: number, targetDownPayment: number) {
+  const estimatedAssistance = Math.min(targetDownPayment, estimateAssistanceAmount(program, estimatedPrice));
+  const estimatedCashNeeded = Math.max(0, targetDownPayment - estimatedAssistance);
+  const coverageRate = targetDownPayment ? estimatedAssistance / targetDownPayment : 0;
+  const repaymentProfile = getRepaymentProfile(program);
+  const coverageScore = Math.min(100, coverageRate * 100);
+  const cashScore = Math.max(0, 100 - (estimatedCashNeeded / Math.max(targetDownPayment, 1)) * 100);
+  const score = repaymentProfile.score * 0.6 + coverageScore * 0.25 + cashScore * 0.15;
+
+  return {
+    estimatedAssistance,
+    estimatedCashNeeded,
+    coverageRate,
+    repaymentProfile,
+    score,
+  };
 }
 
 function getProgramRequirements(program: AssistanceProgram) {
@@ -864,7 +1453,6 @@ function getProgramRequirements(program: AssistanceProgram) {
     "boulder-solution-grant": ["Must buy a select permanently affordable or Thistle CLT home in Boulder city limits.", "Need-based grant; funds are limited.", "Property restrictions apply."],
     "colorado-roots": ["First-time buyer required.", "Selected Colorado community required.", "120% AMI income limit.", "Minimum contribution is greater of $1,000 or 1% of purchase price."],
     "broomfield-chac": ["City of Broomfield purchase.", "First-time buyer required.", "80% AMI income limit.", "Own funds required; first-generation buyers prioritized."],
-    "firstbank-idf": ["First-time buyer required.", "80% AMI income limit.", "Must use FirstBank / IDF program channel.", "4% interest, 15-year second mortgage with monthly payments."],
     "dearfield-fund": ["Black first-time buyer self-identification eligibility.", "Six-county Denver metro service area.", "140% AMI income limit.", "Shared-appreciation repayment applies."],
     "eagle-eclf-shared": ["Eagle County primary residence required.", "Maximum eligible purchase price is $850,000.", "Shared appreciation is due at repayment."],
     "eagle-eclf-amortized": ["Eagle County purchase required.", "FHA first mortgage only.", "Borrower must contribute at least 50% of the assistance amount.", "Monthly payments apply on the amortized second."],
@@ -917,16 +1505,20 @@ function estimateHousingForBedrooms(bedrooms: number, location: string) {
   };
 }
 
-function calculateScore(answers: Answers, answeredKeys: QuestionKey[]) {
-  const modeledLocation = getCheapestLocation(answers.location);
+function calculateScore(answers: Answers, answeredKeys: QuestionKey[], modeledLocationPreference?: string | null) {
+  const selectedLocations = normalizeLocations(answers.location);
+  const modeledLocation = modeledLocationPreference && selectedLocations.includes(modeledLocationPreference) ? modeledLocationPreference : getCheapestLocation(answers.location);
   const locationMultiplier = getLocationMultiplier(modeledLocation);
   const housingEstimate = estimateHousingForBedrooms(answers.bedrooms, modeledLocation);
   const estimatedSquareFeet = housingEstimate.estimatedSquareFeet;
   const estimatedPrice = housingEstimate.estimatedPrice;
   const annualHousingCost = estimatedPrice * 0.081;
   const income = Number(answers.income) || 0;
+  const householdSize = Math.max(1, Math.min(8, Math.round(answers.householdSize || 1)));
   const housingRatio = annualHousingCost / Math.max(income, 1);
-  const incomeScore = Math.max(0, Math.min(100, 100 - (housingRatio - 0.23) * 230));
+  const householdSizeAdjustment = Math.max(0, householdSize - 2) * 0.015;
+  const affordabilityRatio = housingRatio + householdSizeAdjustment;
+  const incomeScore = Math.max(0, Math.min(100, 100 - (affordabilityRatio - 0.23) * 230));
   const locationScore = Math.max(0, Math.min(100, 112 - locationMultiplier * 40));
   const bedroomScore = Math.max(0, Math.min(100, 106 - answers.bedrooms * 9));
   const creditScore = Math.max(0, Math.min(100, (answers.creditScore - 560) / 2.9));
@@ -934,6 +1526,9 @@ function calculateScore(answers: Answers, answeredKeys: QuestionKey[]) {
   const targetDownPayment = estimatedPrice * 0.035;
   const assistanceAmount = Math.min(targetDownPayment, estimateAssistanceAmount(assistanceProgram, estimatedPrice));
   const assistanceScore = Math.max(0, Math.min(100, 48 + (assistanceAmount / Math.max(targetDownPayment, 1)) * 42));
+  const selectedAffordableProgramId = answers.affordablePrograms[0];
+  const selectedAffordablePrograms = selectedAffordableProgramId ? affordableHomeownershipPrograms.filter((program) => program.id === selectedAffordableProgramId) : [];
+  const buyingStrategyBoost = Math.min(28, selectedAffordablePrograms.reduce((sum, program) => sum + program.scoreImpact, 0));
 
   const weights: Record<QuestionKey, number> = {
     location: 0.2,
@@ -942,6 +1537,7 @@ function calculateScore(answers: Answers, answeredKeys: QuestionKey[]) {
     bedrooms: 0.18,
     creditScore: 0.17,
     assistanceProgram: 0.08,
+    affordablePrograms: 0,
   };
 
   const partialScores: Record<QuestionKey, number> = {
@@ -951,11 +1547,12 @@ function calculateScore(answers: Answers, answeredKeys: QuestionKey[]) {
     bedrooms: bedroomScore,
     creditScore,
     assistanceProgram: assistanceScore,
+    affordablePrograms: 50,
   };
 
   const activeWeight = answeredKeys.reduce((sum, key) => sum + weights[key], 0);
   const weightedScore = answeredKeys.reduce((sum, key) => sum + partialScores[key] * weights[key], 0) / Math.max(activeWeight, 1);
-  const score = Math.round(Math.max(0, Math.min(100, weightedScore || 50)));
+  const score = Math.round(Math.max(0, Math.min(100, (weightedScore || 50) + buyingStrategyBoost)));
   const recommendation = score >= 58 ? "Leaning buy" : score <= 42 ? "Leaning rent" : "Too close to call";
 
   return {
@@ -967,9 +1564,13 @@ function calculateScore(answers: Answers, answeredKeys: QuestionKey[]) {
     monthlyPayment: housingEstimate.monthlyMortgage,
     monthlyRent: housingEstimate.monthlyRent,
     housingRatio,
+    affordabilityRatio,
+    householdSizeAdjustment,
     targetDownPayment,
     assistanceAmount,
     cashNeededAfterAssistance: Math.max(0, targetDownPayment - assistanceAmount),
+    selectedAffordablePrograms,
+    buyingStrategyBoost,
     partialScores,
   };
 }
@@ -979,7 +1580,7 @@ function explainImpact(question: Question, answers: Answers, result: ReturnType<
     const selectedLocations = normalizeLocations(answers.location);
     const modeledLocation = result.modeledLocation;
     const multiplier = getLocationMultiplier(modeledLocation);
-    const locationPhrase = selectedLocations.length > 1 ? `${modeledLocation}, the cheapest selected place` : modeledLocation || "Colorado";
+    const locationPhrase = selectedLocations.length > 1 ? `${modeledLocation}, the selected estimate location` : modeledLocation || "Colorado";
 
     return multiplier > 1.25
       ? `${locationPhrase} is modeled as a ${getMarketLabel(multiplier)}, so renting gets stronger unless income can support the higher purchase price.`
@@ -987,9 +1588,11 @@ function explainImpact(question: Question, answers: Answers, result: ReturnType<
   }
 
   if (question.key === "income") {
-    if (result.housingRatio > 0.36) return "At this income, the estimated housing cost is high relative to earnings, so renting is safer."
-    if (result.housingRatio < 0.27) return "This income appears to support the estimated payment comfortably, which moves the result toward buying.";
-    return "The payment may be manageable, but the budget is not wide enough yet to make buying an obvious choice.";
+    const householdPhrase = answers.householdSize > 2 ? ` The ${answers.householdSize}-person household adds everyday cost pressure to the affordability score.` : "";
+
+    if (result.affordabilityRatio > 0.36) return `At this income, the estimated housing cost is high relative to earnings, so renting is safer.${householdPhrase}`;
+    if (result.affordabilityRatio < 0.27) return `This income appears to support the estimated payment comfortably, which moves the result toward buying.${householdPhrase}`;
+    return `The payment may be manageable, but the budget is not wide enough yet to make buying an obvious choice.${householdPhrase}`;
   }
 
   if (question.key === "bedrooms") {
@@ -1000,6 +1603,9 @@ function explainImpact(question: Question, answers: Answers, result: ReturnType<
   }
 
   if (question.key === "assistanceProgram") {
+    const selectedAffordableProgram = result.selectedAffordablePrograms[0];
+    if (selectedAffordableProgram) return `${selectedAffordableProgram.name} may reduce the purchase-price hurdle through an affordable ownership model, but inventory, income limits, and resale rules need verification.`;
+
     const program = getAssistanceProgram(answers.assistanceProgram);
 
     if (program.id === "none") return `No assistance leaves the estimated 3.5% down payment at ${formatCurrency(result.targetDownPayment)}, so the upfront cash hurdle stays higher.`;
@@ -1034,7 +1640,7 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
     return [
       {
         title: "Payment-to-income target",
-        description: `This prototype estimates housing costs at ${Math.round(result.housingRatio * 100)}% of income; many buyers use 28% - 36% as a planning range.`,
+        description: `This prototype estimates housing costs at ${Math.round(result.housingRatio * 100)}% of income, then scores affordability at ${Math.round(result.affordabilityRatio * 100)}% after household size; many buyers use 28% - 36% as a planning range.`,
         url: "https://www.consumerfinance.gov/owning-a-home/prepare/mortgage-affordability/",
       },
       {
@@ -1246,7 +1852,7 @@ function RentVsBuyGraph({ result }: { result: ReturnType<typeof calculateScore> 
 
 function EligibilityQuestionnaire({ eligibility, onChange }: { eligibility: EligibilityAnswers; onChange: (key: keyof EligibilityAnswers, value: EligibilityValue) => void }) {
   return (
-    <div className="space-y-4 rounded-3xl border border-primary/15 bg-gradient-to-br from-primary/10 to-white/85 p-4">
+    <div className="space-y-4 rounded-3xl bg-gradient-to-br from-primary/10 to-white/85 p-4">
       <div>
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Filter programs</p>
         <h3 className="mt-1 text-xl font-black tracking-tight">Only show programs that fit your answers</h3>
@@ -1293,42 +1899,64 @@ function DownPaymentAssistanceList({
   result,
   locations,
   selectedProgramId,
+  selectedAffordableProgramIds,
   eligibility,
   onEligibilityChange,
   onSelect,
+  onAffordableProgramToggle,
 }: {
   result: ReturnType<typeof calculateScore>;
   locations: string[];
   selectedProgramId: string;
+  selectedAffordableProgramIds: string[];
   eligibility: EligibilityAnswers;
   onEligibilityChange: (key: keyof EligibilityAnswers, value: EligibilityValue) => void;
   onSelect: (programId: string) => void;
+  onAffordableProgramToggle: (programId: string) => void;
 }) {
+  const [showAllPrograms, setShowAllPrograms] = useState(false);
+  const [showAffordablePrograms, setShowAffordablePrograms] = useState(false);
   const targetDownPayment = result.estimatedPrice * 0.035;
   const countyNames = getCountyNames(locations);
   const locationFilteredPrograms = downPaymentAssistancePrograms.filter((program) => programMatchesAnyCounty(program, countyNames));
-  const filteredPrograms = locationFilteredPrograms.filter((program) => programMatchesEligibility(program, eligibility));
+  const filteredPrograms = locationFilteredPrograms
+    .filter((program) => programMatchesEligibility(program, eligibility))
+    .sort((first, second) => getAssistanceFit(second, result.estimatedPrice, targetDownPayment).score - getAssistanceFit(first, result.estimatedPrice, targetDownPayment).score);
+  const rankedAssistancePrograms = filteredPrograms.filter((program) => program.id !== "none");
+  const noAssistanceProgram = filteredPrograms.find((program) => program.id === "none");
+  const topPrograms = rankedAssistancePrograms.slice(0, 4);
+  const remainingPrograms = rankedAssistancePrograms.slice(4);
+  const displayedPrograms = [
+    ...topPrograms,
+    ...(noAssistanceProgram ? [noAssistanceProgram] : []),
+    ...(showAllPrograms ? remainingPrograms : []),
+  ];
+  const bestProgramId = rankedAssistancePrograms[0]?.id ?? noAssistanceProgram?.id;
   const countyLabel = countyNames.length ? countyNames.join(", ") : "";
+  const hiddenProgramCount = remainingPrograms.length;
 
   return (
     <div className="space-y-4">
       <EligibilityQuestionnaire eligibility={eligibility} onChange={onEligibilityChange} />
 
-      <div className="space-y-4 rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
+      <div className="space-y-4 rounded-3xl bg-gradient-to-br from-white/85 to-primary/10 p-4">
         <div>
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Down payment help</p>
         <h3 className="mt-1 text-xl font-black tracking-tight">Choose an assistance option</h3>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          {countyLabel ? `Showing ${filteredPrograms.length} of ${locationFilteredPrograms.length} statewide or local programs for ${countyLabel} ${countyNames.length === 1 ? "County" : "Counties"} after your filters.` : `Showing ${filteredPrograms.length} of ${locationFilteredPrograms.length} programs after your filters; choose one or more locations to narrow local programs by county.`} Verify final eligibility with the program or lender.
+          {countyLabel ? `Showing ${filteredPrograms.length} of ${locationFilteredPrograms.length} statewide or local programs for ${countyLabel} ${countyNames.length === 1 ? "County" : "Counties"} after your filters.` : `Showing ${filteredPrograms.length} of ${locationFilteredPrograms.length} programs after your filters; choose one or more locations to narrow local programs by county.`} Ranked by repayment terms first, then cash needed and percent covered. The top 4 options are shown first, with No assistance always listed fifth. Verify final eligibility with the program or lender.
         </p>
       </div>
 
       <div className="grid gap-3">
-        {filteredPrograms.length ? filteredPrograms.map((program) => {
+        {displayedPrograms.length ? displayedPrograms.map((program) => {
           const isSelected = selectedProgramId === program.id;
-          const estimatedAssistance = Math.min(targetDownPayment, estimateAssistanceAmount(program, result.estimatedPrice));
-          const estimatedCashNeeded = Math.max(0, targetDownPayment - estimatedAssistance);
+          const isBestProgram = bestProgramId === program.id;
+          const { estimatedAssistance, estimatedCashNeeded, coverageRate, repaymentProfile } = getAssistanceFit(program, result.estimatedPrice, targetDownPayment);
           const requirements = getProgramRequirements(program);
+          const repaymentClassName = repaymentProfile.tone === "best"
+            ? "bg-primary text-primary-foreground"
+            : "bg-muted text-muted-foreground";
 
           return (
             <button
@@ -1360,7 +1988,7 @@ function DownPaymentAssistanceList({
                   </ul>
                 </div>
               ) : null}
-              <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
                 <div className="rounded-2xl bg-white/80 p-2.5">
                   <p className="text-muted-foreground">3.5% down</p>
                   <p className="mt-1 font-bold">{formatCurrency(targetDownPayment)}</p>
@@ -1370,9 +1998,18 @@ function DownPaymentAssistanceList({
                   <p className="mt-1 font-bold">{formatCurrency(estimatedAssistance)}</p>
                 </div>
                 <div className="rounded-2xl bg-white/80 p-2.5">
+                  <p className="text-muted-foreground">Covers</p>
+                  <p className="mt-1 font-bold">{formatPercent(coverageRate)}</p>
+                </div>
+                <div className="rounded-2xl bg-white/80 p-2.5">
                   <p className="text-muted-foreground">Cash needed</p>
                   <p className="mt-1 font-bold">{formatCurrency(estimatedCashNeeded)}</p>
                 </div>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                {isBestProgram ? <span className="rounded-full bg-primary px-3 py-1 font-black uppercase tracking-[0.14em] text-primary-foreground">Best option</span> : null}
+                <span className={`rounded-full px-3 py-1 font-black ${repaymentClassName}`}>{repaymentProfile.label}</span>
+                {isBestProgram ? <span className="font-semibold text-primary">Best fit favors non-repayable help before the largest dollar amount.</span> : null}
               </div>
             </button>
           );
@@ -1382,14 +2019,115 @@ function DownPaymentAssistanceList({
           </div>
         )}
       </div>
+      {hiddenProgramCount ? (
+        <button
+          type="button"
+          onClick={() => setShowAllPrograms((current) => !current)}
+          className="w-full rounded-full border bg-white/75 px-4 py-3 text-sm font-black text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {showAllPrograms ? "Show fewer options" : `Show ${hiddenProgramCount} more option${hiddenProgramCount === 1 ? "" : "s"}`}
+        </button>
+      ) : null}
+      </div>
+      <button
+        type="button"
+        onClick={() => setShowAffordablePrograms((current) => !current)}
+        className="w-full rounded-full border bg-white/75 px-4 py-3 text-sm font-black text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-expanded={showAffordablePrograms}
+      >
+        {showAffordablePrograms ? "Show fewer affordable ownership options" : "Show more affordable ownership options"}
+      </button>
+
+      {showAffordablePrograms ? (
+        <AffordableHomeownershipProgramList locations={locations} eligibility={eligibility} selectedProgramIds={selectedAffordableProgramIds} onToggleProgram={onAffordableProgramToggle} />
+      ) : null}
+    </div>
+  );
+}
+
+function AffordableHomeownershipProgramList({ locations, eligibility, selectedProgramIds, onToggleProgram }: { locations: string[]; eligibility: EligibilityAnswers; selectedProgramIds: string[]; onToggleProgram: (programId: string) => void }) {
+  const countyNames = getCountyNames(locations);
+  const locationFilteredPrograms = affordableHomeownershipPrograms.filter((program) => homeownershipProgramMatchesAnyCounty(program, countyNames));
+  const filteredPrograms = locationFilteredPrograms.filter((program) => homeownershipProgramMatchesEligibility(program, eligibility));
+  const countyLabel = countyNames.length ? countyNames.join(", ") : "";
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Affordable ownership programs</p>
+        <h3 className="mt-1 text-xl font-black tracking-tight">Choose an affordable housing option</h3>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          {countyLabel ? `Showing ${filteredPrograms.length} of ${locationFilteredPrograms.length} programs for ${countyLabel} ${countyNames.length === 1 ? "County" : "Counties"} after your filters.` : `Showing ${filteredPrograms.length} of ${locationFilteredPrograms.length} programs after your filters; choose one or more locations to narrow local programs by county.`} Select one program to investigate instead of a traditional down payment assistance path. Choosing one clears any down payment assistance choice.
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {filteredPrograms.length ? filteredPrograms.map((program) => {
+          const isSelected = selectedProgramIds[0] === program.id;
+
+          return (
+            <div
+              key={program.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => onToggleProgram(program.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onToggleProgram(program.id);
+                }
+              }}
+              className={`rounded-3xl border p-4 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isSelected ? "border-primary bg-primary/10 shadow-glow" : "bg-white/75"}`}
+              aria-pressed={isSelected}
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-black tracking-tight">{program.name}</p>
+                  </div>
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{program.organization} • {program.modelType}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className={`h-4 w-4 rounded-full border-2 ${isSelected ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
+                </div>
+              </div>
+
+              <div className="mt-3 rounded-2xl bg-white/80 p-3 text-sm leading-6 text-muted-foreground">
+                <p><span className="font-bold text-foreground">Key requirements: </span>{program.requirements}</p>
+              </div>
+
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl bg-primary/10 p-3">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Benefits</p>
+                  <ul className="mt-2 space-y-1 text-sm leading-5 text-muted-foreground">
+                    {program.benefits.map((benefit) => <li key={benefit}>• {benefit}</li>)}
+                  </ul>
+                </div>
+                <div className="rounded-2xl bg-muted/70 p-3">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Tradeoffs</p>
+                  <ul className="mt-2 space-y-1 text-sm leading-5 text-muted-foreground">
+                    {program.drawbacks.map((drawback) => <li key={drawback}>• {drawback}</li>)}
+                  </ul>
+                </div>
+              </div>
+              <a href={program.website} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()} className="mt-3 inline-flex items-center text-sm font-bold text-primary underline-offset-4 hover:underline">
+                Website
+                <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+              </a>
+            </div>
+          );
+        }) : (
+          <div className="rounded-3xl border bg-white/75 p-4 text-sm leading-6 text-muted-foreground">
+            No affordable ownership programs match those filters. Change a “no” answer to “unsure” if you want to keep programs visible while you verify a requirement.
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function CreditScoreExplanation({ answers, result }: { answers: Answers; result: ReturnType<typeof calculateScore> }) {
+function CreditScoreExplanation({ answers }: { answers: Answers; result: ReturnType<typeof calculateScore> }) {
   const currentBand = getCreditScoreOption(answers.creditScore);
-  const creditContribution = Math.round(result.partialScores.creditScore);
   const milestone = getCreditScoreMilestone(answers.creditScore);
   const scorePosition = Math.max(0, Math.min(100, ((answers.creditScore - 560) / (850 - 560)) * 100));
 
@@ -1417,15 +2155,9 @@ function CreditScoreExplanation({ answers, result }: { answers: Answers; result:
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-3xl bg-white/75 p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Modeled strength</p>
-          <p className="mt-2 text-2xl font-black">{creditContribution}/100</p>
-        </div>
-        <div className="rounded-3xl bg-white/75 p-4 sm:col-span-2">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Next useful milestone</p>
-          <p className="mt-2 text-sm font-semibold leading-6">{milestone}</p>
-        </div>
+      <div className="rounded-3xl bg-white/75 p-4">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Next useful milestone</p>
+        <p className="mt-2 text-sm font-semibold leading-6">{milestone}</p>
       </div>
 
       <div className="rounded-3xl bg-white/75 p-4">
@@ -1440,8 +2172,83 @@ function CreditScoreExplanation({ answers, result }: { answers: Answers; result:
   );
 }
 
-function SummaryNextSteps({ answers, result }: { answers: Answers; result: ReturnType<typeof calculateScore> }) {
+function ContactCard({ contact, selected, compact = false, onSelect }: { contact: Contact; selected?: boolean; compact?: boolean; onSelect?: (contactId: string) => void }) {
+  const content = (
+    <>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-black tracking-tight">{contact.name}</p>
+          <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{contact.company}</p>
+        </div>
+        {selected !== undefined ? <span className={`h-4 w-4 rounded-full border-2 ${selected ? "border-primary bg-primary" : "border-muted-foreground/40"}`} /> : null}
+      </div>
+
+      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+        {contact.phone ? <p className="rounded-2xl bg-white/80 p-2.5"><span className="text-muted-foreground">Phone </span><span className="font-bold">{contact.phone}</span></p> : null}
+        {contact.email ? <p className="rounded-2xl bg-white/80 p-2.5 break-words"><span className="text-muted-foreground">Email </span><span className="font-bold">{contact.email}</span></p> : null}
+        {contact.nmls ? <p className="rounded-2xl bg-white/80 p-2.5"><span className="text-muted-foreground">NMLS </span><span className="font-bold">{contact.nmls}</span></p> : null}
+        {contact.award ? <p className="rounded-2xl bg-white/80 p-2.5"><span className="text-muted-foreground">Award </span><span className="font-bold">{contact.award}</span></p> : null}
+      </div>
+
+      {!compact ? (
+        <>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">Serves: {contact.countiesServed.includes("all") ? "All listed Colorado counties" : contact.countiesServed.join(", ")}</p>
+          {contact.languages ? <p className="mt-1 text-sm leading-6 text-muted-foreground">Languages: {contact.languages}</p> : null}
+          {contact.specialties?.length ? <p className="mt-1 text-sm leading-6 text-muted-foreground">Specialties: {contact.specialties.join(", ")}</p> : null}
+          {contact.notes ? <p className="mt-2 text-sm leading-6 text-muted-foreground">{contact.notes}</p> : null}
+          {contact.website ? (
+            <a href={contact.website} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center text-sm font-bold text-primary underline-offset-4 hover:underline">
+              Website
+              <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+            </a>
+          ) : null}
+        </>
+      ) : null}
+    </>
+  );
+
+  if (!onSelect) {
+    return <div className="rounded-3xl border bg-white/75 p-4">{content}</div>;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(contact.id)}
+      className={`rounded-3xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selected ? "border-primary bg-primary/10 shadow-glow" : "bg-white/75"}`}
+    >
+      {content}
+    </button>
+  );
+}
+
+function ContactPickerPage({ type, contacts, selectedContactId, locations, onSelect }: { type: "lender" | "realtor"; contacts: Contact[]; selectedContactId: string | null; locations: string[]; onSelect: (contactId: string) => void }) {
+  const sortedContacts = sortContactsForLocations(contacts, locations);
+  const countyNames = getCountyNames(locations);
+  const matchingCount = sortedContacts.filter((contact) => contactMatchesCounty(contact, countyNames)).length;
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-3xl border border-primary/15 bg-primary/10 p-4">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Select a {type}</p>
+        <h3 className="mt-1 text-xl font-black tracking-tight">Choose who you want to follow up with</h3>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          {countyNames.length ? `Showing ${matchingCount} ${type}s with coverage in ${countyNames.join(", ")} first.` : `Choose a location to prioritize ${type}s by county.`} Selecting one returns you to the summary.
+        </p>
+      </div>
+
+      <div className="grid gap-3">
+        {sortedContacts.map((contact) => (
+          <ContactCard key={contact.id} contact={contact} selected={selectedContactId === contact.id} onSelect={onSelect} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SummaryNextSteps({ answers, result, selectedLender, selectedRealtor, onFindLender, onFindRealtor }: { answers: Answers; result: ReturnType<typeof calculateScore>; selectedLender: Contact | null; selectedRealtor: Contact | null; onFindLender: () => void; onFindRealtor: () => void }) {
   const program = getAssistanceProgram(answers.assistanceProgram);
+  const selectedAffordableProgram = result.selectedAffordablePrograms[0];
   const programUrl = assistanceProgramLinks[program.id];
   const bedroomsLabel = answers.bedrooms === 0 ? "empty lot" : `${answers.bedrooms} bedroom${answers.bedrooms === 1 ? "" : "s"}`;
   const selectedLocations = normalizeLocations(answers.location);
@@ -1468,13 +2275,15 @@ function SummaryNextSteps({ answers, result }: { answers: Answers; result: Retur
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Location</p>
           <p className="mt-2 font-black tracking-tight">{getLocationsLabel(answers.location)}</p>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            {selectedLocations.length > 1 ? `Home cost modeled with the cheapest selection: ${result.modeledLocation}.` : `Modeled as a ${getMarketLabel(getLocationMultiplier(result.modeledLocation))}.`}
+            {selectedLocations.length > 1 ? `Home cost modeled with the selected estimate location: ${result.modeledLocation}.` : `Modeled as a ${getMarketLabel(getLocationMultiplier(result.modeledLocation))}.`}
           </p>
         </div>
         <div className="rounded-3xl border bg-white/75 p-4">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Income</p>
           <p className="mt-2 font-black tracking-tight">{answers.income === "" ? "Not entered" : formatCurrency(answers.income)}</p>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">Estimated housing cost is {Math.round(result.housingRatio * 100)}% of income.</p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            {answers.householdSize} person household; score uses a {Math.round(result.affordabilityRatio * 100)}% household-adjusted affordability ratio.
+          </p>
         </div>
         <div className="rounded-3xl border bg-white/75 p-4">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Home target</p>
@@ -1489,16 +2298,16 @@ function SummaryNextSteps({ answers, result }: { answers: Answers; result: Retur
       </div>
 
       <div className="rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Down payment choice</p>
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">{selectedAffordableProgram ? "Affordable ownership choice" : "Down payment choice"}</p>
         <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-xl font-black tracking-tight">{program.title}</p>
+            <p className="text-xl font-black tracking-tight">{selectedAffordableProgram ? selectedAffordableProgram.name : program.title}</p>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              This estimates {formatCurrency(result.assistanceAmount)} in assistance, leaving {formatCurrency(result.cashNeededAfterAssistance)} before closing costs.
+              {selectedAffordableProgram ? `${selectedAffordableProgram.modelType} serving ${selectedAffordableProgram.serviceArea}. Verify inventory, income limits, and lender requirements before relying on this path.` : `This estimates ${formatCurrency(result.assistanceAmount)} in assistance, leaving ${formatCurrency(result.cashNeededAfterAssistance)} before closing costs.`}
             </p>
           </div>
-          {programUrl ? (
-            <a href={programUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center rounded-full bg-secondary px-4 py-2 text-sm font-bold text-secondary-foreground transition hover:bg-secondary/80">
+          {selectedAffordableProgram || programUrl ? (
+            <a href={selectedAffordableProgram?.website ?? programUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center rounded-full bg-secondary px-4 py-2 text-sm font-bold text-secondary-foreground transition hover:bg-secondary/80">
               Program details
               <ExternalLink className="ml-2 h-4 w-4" />
             </a>
@@ -1514,6 +2323,33 @@ function SummaryNextSteps({ answers, result }: { answers: Answers; result: Retur
           <li>• Ask whether the lender is approved for your selected down payment assistance program before relying on the estimate.</li>
           <li>• Find a realtor who knows your target area and can compare homes, HOA costs, inspection needs, and resale tradeoffs.</li>
         </ul>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <Button type="button" onClick={onFindLender} className="h-auto justify-between rounded-2xl px-4 py-3 text-left">
+            <span>{selectedLender ? "Change lender" : "Find a lender"}</span>
+            <ArrowRight className="ml-3 h-4 w-4" />
+          </Button>
+          <Button type="button" onClick={onFindRealtor} className="h-auto justify-between rounded-2xl px-4 py-3 text-left">
+            <span>{selectedRealtor ? "Change realtor" : "Find a realtor"}</span>
+            <ArrowRight className="ml-3 h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-3 rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Selected lender</p>
+            {selectedLender ? <button type="button" onClick={onFindLender} className="text-xs font-bold text-primary underline-offset-4 hover:underline">Change</button> : null}
+          </div>
+          {selectedLender ? <ContactCard contact={selectedLender} compact /> : <p className="text-sm leading-6 text-muted-foreground">No lender selected yet.</p>}
+        </div>
+        <div className="space-y-3 rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Selected realtor</p>
+            {selectedRealtor ? <button type="button" onClick={onFindRealtor} className="text-xs font-bold text-primary underline-offset-4 hover:underline">Change</button> : null}
+          </div>
+          {selectedRealtor ? <ContactCard contact={selectedRealtor} compact /> : <p className="text-sm leading-6 text-muted-foreground">No realtor selected yet.</p>}
+        </div>
       </div>
     </div>
   );
@@ -1529,13 +2365,21 @@ function App() {
     if (parsed.income === 95000) delete parsed.income;
     const location = normalizeLocations(parsed.location);
 
-    return { ...initialAnswers, ...parsed, location, bedrooms: Math.max(1, parsed.bedrooms ?? parsed.rooms ?? initialAnswers.bedrooms) };
+    return {
+      ...initialAnswers,
+      ...parsed,
+      location,
+      householdSize: Math.max(1, Math.min(8, Math.round(parsed.householdSize ?? initialAnswers.householdSize))),
+      bedrooms: Math.max(1, parsed.bedrooms ?? parsed.rooms ?? initialAnswers.bedrooms),
+      affordablePrograms: Array.isArray(parsed.affordablePrograms) ? parsed.affordablePrograms.slice(0, 1) : [],
+    };
   });
   const initialRoute = getRouteFromUrl();
   const [step, setStep] = useState(initialRoute.step);
   const [showIntro, setShowIntro] = useState(initialRoute.showIntro);
   const [showExplanation, setShowExplanation] = useState(initialRoute.showExplanation);
   const [showSummary, setShowSummary] = useState(initialRoute.showSummary);
+  const [contactPicker, setContactPicker] = useState<"lender" | "realtor" | null>(initialRoute.contactPicker);
   const [locationSearch, setLocationSearch] = useState("");
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   const [activeLocationIndex, setActiveLocationIndex] = useState(0);
@@ -1545,16 +2389,21 @@ function App() {
 
     return { ...initialEligibilityAnswers, ...(JSON.parse(saved) as Partial<EligibilityAnswers>) };
   });
+  const [selectedLenderId, setSelectedLenderId] = useState(() => window.localStorage.getItem(SELECTED_LENDER_STORAGE_KEY));
+  const [selectedRealtorId, setSelectedRealtorId] = useState(() => window.localStorage.getItem(SELECTED_REALTOR_STORAGE_KEY));
+  const [modeledLocationOverride, setModeledLocationOverride] = useState(() => window.localStorage.getItem(MODELED_LOCATION_STORAGE_KEY));
 
   const answeredKeys = useMemo(() => (showIntro ? [] : questions.slice(0, showSummary ? questions.length : step + 1).map((question) => question.key)), [step, showIntro, showSummary]);
   const currentQuestion = questions[step];
-  const result = useMemo(() => calculateScore(answers, answeredKeys), [answers, answeredKeys]);
+  const result = useMemo(() => calculateScore(answers, answeredKeys, modeledLocationOverride), [answers, answeredKeys, modeledLocationOverride]);
   const answerValue = answers[currentQuestion.key];
   const isLastPage = showSummary;
-  const totalPages = questions.length * 2 + 2;
-  const pageIndex = showIntro ? 1 : showSummary ? totalPages : step * 2 + (showExplanation ? 3 : 2);
+  const totalPages = questions.length * 2 + 1;
+  const pageIndex = showIntro ? 1 : showSummary ? totalPages : step === 0 ? 2 : step * 2 + (showExplanation ? 2 : 1);
   const resources = getQuestionResources(currentQuestion, answers, result);
   const walkingDirection = result.score < 50 ? "rent" : "buy";
+  const selectedLender = getContactById(lenders, selectedLenderId);
+  const selectedRealtor = getContactById(realtors, selectedRealtorId);
   const filteredLocations = useMemo(() => {
     const query = locationSearch.trim().toLowerCase();
     const terms = query.split(/\s+/).filter(Boolean);
@@ -1593,14 +2442,34 @@ function App() {
   }, [eligibility]);
 
   useEffect(() => {
-    const stepName = getStepName(step, showIntro, showExplanation, showSummary);
+    if (modeledLocationOverride && selectedLocations.includes(modeledLocationOverride)) {
+      window.localStorage.setItem(MODELED_LOCATION_STORAGE_KEY, modeledLocationOverride);
+      return;
+    }
+
+    window.localStorage.removeItem(MODELED_LOCATION_STORAGE_KEY);
+    if (modeledLocationOverride) setModeledLocationOverride(null);
+  }, [modeledLocationOverride, selectedLocations]);
+
+  useEffect(() => {
+    if (selectedLenderId) window.localStorage.setItem(SELECTED_LENDER_STORAGE_KEY, selectedLenderId);
+    else window.localStorage.removeItem(SELECTED_LENDER_STORAGE_KEY);
+  }, [selectedLenderId]);
+
+  useEffect(() => {
+    if (selectedRealtorId) window.localStorage.setItem(SELECTED_REALTOR_STORAGE_KEY, selectedRealtorId);
+    else window.localStorage.removeItem(SELECTED_REALTOR_STORAGE_KEY);
+  }, [selectedRealtorId]);
+
+  useEffect(() => {
+    const stepName = getStepName(step, showIntro, showExplanation, showSummary, contactPicker);
     const url = new URL(window.location.href);
     url.searchParams.set("step", stepName);
 
     if (url.href !== window.location.href) {
       window.history.replaceState(null, "", url);
     }
-  }, [step, showIntro, showExplanation, showSummary]);
+  }, [step, showIntro, showExplanation, showSummary, contactPicker]);
 
   useEffect(() => {
     function handlePopState() {
@@ -1609,6 +2478,7 @@ function App() {
       setShowIntro(route.showIntro);
       setShowExplanation(route.showExplanation);
       setShowSummary(route.showSummary);
+      setContactPicker(route.contactPicker);
     }
 
     window.addEventListener("popstate", handlePopState);
@@ -1617,6 +2487,23 @@ function App() {
 
   function updateAnswer(value: string | number | string[]) {
     setAnswers((current) => ({ ...current, [currentQuestion.key]: value }));
+  }
+
+  function updateHouseholdSize(value: number) {
+    setAnswers((current) => ({ ...current, householdSize: Math.max(1, Math.min(8, Math.round(value))) }));
+  }
+
+  function toggleAffordableProgram(programId: string) {
+    setAnswers((current) => {
+      const selectedPrograms = Array.isArray(current.affordablePrograms) ? current.affordablePrograms : [];
+      const isSelected = selectedPrograms[0] === programId;
+
+      return {
+        ...current,
+        assistanceProgram: "none",
+        affordablePrograms: isSelected ? [] : [programId],
+      };
+    });
   }
 
   function updateEligibility(key: keyof EligibilityAnswers, value: EligibilityValue) {
@@ -1633,6 +2520,7 @@ function App() {
         location: locationAlreadySelected ? selectedLocations.filter((selectedLocation) => selectedLocation !== location) : [...selectedLocations, location],
       };
     });
+    if (modeledLocationOverride === location) setModeledLocationOverride(null);
     setLocationSearch("");
     setIsLocationOpen(false);
     setActiveLocationIndex(0);
@@ -1670,12 +2558,40 @@ function App() {
     setShowIntro(true);
     setShowExplanation(false);
     setShowSummary(false);
+    setContactPicker(null);
+    setSelectedLenderId(null);
+    setSelectedRealtorId(null);
+    setModeledLocationOverride(null);
     window.localStorage.removeItem(STORAGE_KEY);
     window.localStorage.removeItem(ELIGIBILITY_STORAGE_KEY);
+    window.localStorage.removeItem(SELECTED_LENDER_STORAGE_KEY);
+    window.localStorage.removeItem(SELECTED_REALTOR_STORAGE_KEY);
+    window.localStorage.removeItem(MODELED_LOCATION_STORAGE_KEY);
+  }
+
+  function openContactPicker(type: "lender" | "realtor") {
+    setShowIntro(false);
+    setShowSummary(true);
+    setShowExplanation(true);
+    setStep(questions.length - 1);
+    setContactPicker(type);
+  }
+
+  function selectContact(contactId: string) {
+    if (contactPicker === "lender") setSelectedLenderId(contactId);
+    if (contactPicker === "realtor") setSelectedRealtorId(contactId);
+    setContactPicker(null);
+    setShowSummary(true);
   }
 
   function goBack() {
     if (showIntro) return;
+
+    if (contactPicker) {
+      setContactPicker(null);
+      setShowSummary(true);
+      return;
+    }
 
     if (showSummary) {
       setShowSummary(false);
@@ -1695,7 +2611,7 @@ function App() {
     }
 
     setStep((current) => Math.max(0, current - 1));
-    setShowExplanation(step > 0);
+    setShowExplanation(step > 1);
   }
 
   function goNext() {
@@ -1704,9 +2620,17 @@ function App() {
       return;
     }
 
+    if (contactPicker) return;
+
     if (showSummary) return;
 
     if (!showExplanation) {
+      if (currentQuestion.key === "location") {
+        setStep((current) => Math.min(questions.length - 1, current + 1));
+        setShowExplanation(false);
+        return;
+      }
+
       setShowExplanation(true);
       return;
     }
@@ -1750,7 +2674,7 @@ function App() {
           <CardHeader className="gap-1.5 p-5 pb-4">
             <div className="flex items-center justify-between gap-4">
               <span className="rounded-full bg-secondary px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-secondary-foreground">
-                {showIntro ? "Welcome" : showSummary ? "Summary" : currentQuestion.eyebrow}
+                {showIntro ? "Welcome" : contactPicker ? `Select ${contactPicker}` : showSummary ? "Summary" : currentQuestion.eyebrow}
               </span>
               <span className="text-sm font-semibold text-muted-foreground">
                 {pageIndex} / {totalPages}
@@ -1759,10 +2683,10 @@ function App() {
             {!showIntro ? (
               <>
                 <CardTitle className="text-2xl leading-tight sm:text-3xl">
-                  {showSummary ? "Summary and next steps" : showExplanation ? "How that answer changed your result" : currentQuestion.title}
+                  {contactPicker ? `Choose a ${contactPicker}` : showSummary ? "Summary and next steps" : showExplanation ? "How that answer changed your result" : currentQuestion.title}
                 </CardTitle>
                 <CardDescription className="text-sm leading-6">
-                  {showSummary ? "Review your choices, then connect with a lender and realtor to verify the plan." : showExplanation ? "Review the impact of your last answer and a few resources to help you investigate further." : currentQuestion.description}
+                  {contactPicker ? "Select one contact to save it to your summary." : showSummary ? "Review your choices, then connect with a lender and realtor to verify the plan." : showExplanation ? "Review the impact of your last answer and a few resources to help you investigate further." : currentQuestion.description}
                 </CardDescription>
               </>
             ) : null}
@@ -1770,14 +2694,24 @@ function App() {
           <CardContent className="space-y-5 p-5 pt-0">
             {showIntro ? (
               <WhatThisIsPage />
+            ) : contactPicker ? (
+              <ContactPickerPage type={contactPicker} contacts={contactPicker === "lender" ? lenders : realtors} selectedContactId={contactPicker === "lender" ? selectedLenderId : selectedRealtorId} locations={selectedLocations} onSelect={selectContact} />
             ) : showSummary ? (
-              <SummaryNextSteps answers={answers} result={result} />
+              <SummaryNextSteps answers={answers} result={result} selectedLender={selectedLender} selectedRealtor={selectedRealtor} onFindLender={() => openContactPicker("lender")} onFindRealtor={() => openContactPicker("realtor")} />
             ) : showExplanation ? (
               <div className="space-y-4">
                 <div className="rounded-3xl border border-primary/15 bg-primary/10 p-4">
                   <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">{currentQuestion.eyebrow}</p>
                   <p className="mt-2 text-lg font-black text-foreground">
-                    {currentQuestion.key === "income" ? formatCurrency(Number(answerValue)) : currentQuestion.key === "assistanceProgram" ? getAssistanceProgram(String(answerValue)).title : currentQuestion.key === "creditScore" ? getCreditScoreOption(Number(answerValue)).range : getLocationsLabel(answers.location)}
+                    {currentQuestion.key === "income"
+                      ? `${formatCurrency(Number(answerValue))}, ${answers.householdSize} person household`
+                      : currentQuestion.key === "bedrooms"
+                        ? `${Number(answerValue)} bedroom${Number(answerValue) === 1 ? "" : "s"} in ${result.modeledLocation}`
+                        : currentQuestion.key === "assistanceProgram"
+                          ? result.selectedAffordablePrograms[0]?.name ?? getAssistanceProgram(String(answerValue)).title
+                          : currentQuestion.key === "creditScore"
+                            ? getCreditScoreOption(Number(answerValue)).range
+                            : getLocationsLabel(answers.location)}
                   </p>
                   <p className="mt-3 text-sm leading-6 text-muted-foreground">{explainImpact(currentQuestion, answers, result)}</p>
                 </div>
@@ -1891,20 +2825,50 @@ function App() {
             ) : (
                   <div className="space-y-4">
                 {currentQuestion.key === "income" ? (
-                  <div className="relative">
-                    {currentQuestion.type === "currency" ? (
-                      <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-base font-semibold text-muted-foreground">$</span>
-                    ) : null}
-                    <Input
-                      className={`${currentQuestion.type === "currency" ? "pl-8" : ""} text-center text-lg font-semibold`}
-                      type="number"
-                      min={currentQuestion.min}
-                      max={currentQuestion.max}
-                      step={currentQuestion.step}
-                      value={answerValue}
-                      onChange={(event) => updateAnswer(event.target.value === "" ? "" : Number(event.target.value))}
-                    />
-                  </div>
+                  <>
+                    <div className="relative">
+                      {currentQuestion.type === "currency" ? (
+                        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-base font-semibold text-muted-foreground">$</span>
+                      ) : null}
+                      <Input
+                        className={`${currentQuestion.type === "currency" ? "pl-8" : ""} text-center text-lg font-semibold`}
+                        type="number"
+                        min={currentQuestion.min}
+                        max={currentQuestion.max}
+                        step={currentQuestion.step}
+                        value={answerValue}
+                        onChange={(event) => updateAnswer(event.target.value === "" ? "" : Number(event.target.value))}
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Household size</p>
+                          <p className="mt-1 text-sm leading-6 text-muted-foreground">Include everyone who will live in the home; larger households add everyday cost pressure to the score.</p>
+                        </div>
+                      </div>
+                      <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-8">
+                        {householdSizeOptions.map((size) => {
+                          const isSelected = answers.householdSize === size;
+
+                          return (
+                            <button
+                              key={size}
+                              type="button"
+                              onClick={() => updateHouseholdSize(size)}
+                              className={`rounded-2xl border px-3 py-2 text-sm font-black transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                                isSelected ? "border-primary bg-primary/10 text-primary shadow-glow" : "bg-white/80 text-foreground"
+                              }`}
+                              aria-pressed={isSelected}
+                            >
+                              {size}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
                 ) : currentQuestion.key === "bedrooms" ? (
                   <>
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -1954,7 +2918,7 @@ function App() {
                           <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
                           <div className="space-y-3">
                             <p>
-                              For the house-cost estimate, we use the cheaper selected place: <span className="font-bold">{result.modeledLocation}</span>. Down payment assistance includes programs for any selected county.
+                              For the house-cost estimate, click a place below to model the bedroom cards above with that market: <span className="font-bold">{result.modeledLocation}</span>. Down payment assistance includes programs for any selected county.
                             </p>
                             <div className="grid gap-2 sm:grid-cols-2">
                               {[...selectedLocations]
@@ -1964,7 +2928,13 @@ function App() {
                                   const isModeled = location === result.modeledLocation;
 
                                   return (
-                                    <div key={location} className={`rounded-2xl border bg-white/80 p-3 ${isModeled ? "border-amber-400" : "border-amber-200"}`}>
+                                    <button
+                                      key={location}
+                                      type="button"
+                                      onClick={() => setModeledLocationOverride(location)}
+                                      className={`rounded-2xl border bg-white/80 p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isModeled ? "border-amber-400" : "border-amber-200"}`}
+                                      aria-label={`Model bedroom costs with ${location}`}
+                                    >
                                       <div className="flex items-start justify-between gap-2">
                                         <p className="font-black tracking-tight text-foreground">{location}</p>
                                         {isModeled ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[0.65rem] font-black uppercase tracking-[0.14em] text-amber-700">Modeled</span> : null}
@@ -1979,7 +2949,7 @@ function App() {
                                           <p className="mt-1 font-bold text-foreground">{formatCurrency(estimate.monthlyMortgage)}/mo</p>
                                         </div>
                                       </div>
-                                    </div>
+                                    </button>
                                   );
                                 })}
                             </div>
@@ -1989,7 +2959,19 @@ function App() {
                     ) : null}
                   </>
                 ) : currentQuestion.key === "assistanceProgram" ? (
-                  <DownPaymentAssistanceList result={result} locations={answers.location} selectedProgramId={String(answerValue)} eligibility={eligibility} onEligibilityChange={updateEligibility} onSelect={updateAnswer} />
+                  <DownPaymentAssistanceList
+                    result={result}
+                    locations={answers.location}
+                    selectedProgramId={answers.affordablePrograms.length ? "" : String(answerValue)}
+                    selectedAffordableProgramIds={answers.affordablePrograms}
+                    eligibility={eligibility}
+                    onEligibilityChange={updateEligibility}
+                    onSelect={(programId) => {
+                      updateAnswer(programId);
+                      setAnswers((current) => ({ ...current, affordablePrograms: [] }));
+                    }}
+                    onAffordableProgramToggle={toggleAffordableProgram}
+                  />
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2">
                     {creditScoreOptions.map((option) => {
@@ -2039,7 +3021,7 @@ function App() {
                 Back
               </Button>
               <Button onClick={goNext} disabled={isLastPage}>
-                {showIntro ? "Get started" : showSummary ? "Complete" : showExplanation ? (step === questions.length - 1 ? "See summary" : "Next question") : "See impact"}
+                {showIntro ? "Get started" : showSummary ? "Complete" : showExplanation ? (step === questions.length - 1 ? "See summary" : "Next question") : currentQuestion.key === "location" ? "Next question" : "See impact"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
