@@ -1,14 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, ChevronsUpDown, ExternalLink, RotateCcw, TriangleAlert } from "lucide-react";
+import { ArrowLeft, ArrowRight, ExternalLink, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { HouseSizeSvg, WalkingPersonSvg } from "@/components/home/HomeVisuals";
+import { ContactPickerPage as ContactPickerPageView } from "@/pages/ContactPickerPage";
+import { QuestionFlowPage } from "@/pages/QuestionFlowPage";
+import { SummaryNextStepsPage } from "@/pages/SummaryNextStepsPage";
+import { WhatThisIsPage as WhatThisIsPageView } from "@/pages/WhatThisIsPage";
 
 type Answers = {
   location: string[];
   income: number | "";
+  incomeFrequency: "weekly" | "biweekly" | "monthly" | "annual";
   householdSize: number;
   bedrooms: number;
+  savings: number | "";
   creditScore: number;
   assistanceProgram: string;
   affordablePrograms: string[];
@@ -85,8 +91,10 @@ type HomeownershipProgram = {
   website: string;
   contact: string;
   verified: "Verified" | "Partial";
-  scoreImpact: number;
+  priceReductionRate: number;
 };
+
+const PAYMENT_TO_INCOME_TARGET = 0.3;
 
 const STORAGE_KEY = "home-buying-prototype-answers";
 const ELIGIBILITY_STORAGE_KEY = "home-buying-prototype-eligibility";
@@ -108,7 +116,7 @@ const affordableHomeownershipPrograms: HomeownershipProgram[] = [
     website: "https://elevationclt.org/qualify-apply/",
     contact: "info@elevationclt.org | 720-822-0052",
     verified: "Verified",
-    scoreImpact: 10,
+    priceReductionRate: 0.1,
   },
   {
     id: "cclt",
@@ -123,7 +131,7 @@ const affordableHomeownershipPrograms: HomeownershipProgram[] = [
     website: "https://habitatmetrodenver.org/home-programs/cclt/",
     contact: "stewardship@habitatmetrodenver.org | 720-496-2703",
     verified: "Verified",
-    scoreImpact: 10,
+    priceReductionRate: 0.1,
   },
   {
     id: "thistle",
@@ -138,7 +146,7 @@ const affordableHomeownershipPrograms: HomeownershipProgram[] = [
     website: "https://www.thistlecommunityhousing.org/community-land-trust",
     contact: "info@thistlecommunities.org | 303-443-0007",
     verified: "Verified",
-    scoreImpact: 10,
+    priceReductionRate: 0.1,
   },
   {
     id: "habitat-metro-denver",
@@ -153,7 +161,7 @@ const affordableHomeownershipPrograms: HomeownershipProgram[] = [
     website: "https://habitatmetrodenver.org/home-programs/homeownership/",
     contact: "homeownership@habitatmetrodenver.org",
     verified: "Verified",
-    scoreImpact: 11,
+    priceReductionRate: 0.11,
   },
   {
     id: "chaffee-housing-trust",
@@ -168,7 +176,7 @@ const affordableHomeownershipPrograms: HomeownershipProgram[] = [
     website: "https://chaffeehousing.org",
     contact: "info@chaffeehousing.org | 719-239-1199",
     verified: "Partial",
-    scoreImpact: 7,
+    priceReductionRate: 0.07,
   },
   {
     id: "goose-creek-clt",
@@ -183,7 +191,7 @@ const affordableHomeownershipPrograms: HomeownershipProgram[] = [
     website: "https://goosecreekclt.org",
     contact: "david@goosecreekclt.org | 303-545-6255",
     verified: "Partial",
-    scoreImpact: 7,
+    priceReductionRate: 0.07,
   },
   {
     id: "crhdc-contractor-build",
@@ -198,7 +206,7 @@ const affordableHomeownershipPrograms: HomeownershipProgram[] = [
     website: "https://crhdc.org/services/housing-development/",
     contact: "CRHDC | 303-428-1448",
     verified: "Verified",
-    scoreImpact: 8,
+    priceReductionRate: 0.08,
   },
 ];
 
@@ -615,9 +623,11 @@ const realtors: Contact[] = [
 const initialAnswers: Answers = {
   location: [],
   income: "",
+  incomeFrequency: "annual",
   householdSize: 2,
   bedrooms: 3,
-  creditScore: 720,
+  savings: "",
+  creditScore: 620,
   assistanceProgram: "none",
   affordablePrograms: [],
 };
@@ -631,25 +641,35 @@ const questions: Question[] = [
     type: "location",
   },
   {
+    key: "bedrooms",
+    eyebrow: "Target home",
+    title: "How many bedrooms do you need?",
+    description: "Choose the house size you are looking for so the readiness meter can compare the estimated monthly payment and down payment need.",
+    type: "number",
+    min: 1,
+    max: 8,
+    step: 1,
+    suffix: "bedrooms",
+  },
+  {
     key: "income",
     eyebrow: "Monthly budget",
-    title: "What is your annual household income?",
-    description: "Income is the strongest early signal because it determines how much payment you can safely carry.",
+    title: "What is your household income?",
+    description: "Choose the pay frequency you know best. Income is the strongest early signal because it determines how much payment you can safely carry.",
     type: "currency",
     min: 30000,
     max: 300000,
     step: 5000,
   },
   {
-    key: "bedrooms",
-    eyebrow: "Target home",
-    title: "How many bedrooms do you need?",
-    description: "Compare monthly rent against the estimated mortgage for each home size, then choose the bedroom count that fits your household.",
-    type: "number",
-    min: 1,
-    max: 8,
-    step: 1,
-    suffix: "bedrooms",
+    key: "savings",
+    eyebrow: "Upfront cash",
+    title: "How much do you have saved?",
+    description: "Enter your total savings for buying a home.",
+    type: "currency",
+    min: 0,
+    max: 200000,
+    step: 1000,
   },
   {
     key: "creditScore",
@@ -676,7 +696,12 @@ type StepRoute = {
   showExplanation: boolean;
   showSummary: boolean;
   contactPicker: "lender" | "realtor" | null;
+  returnToSummary: boolean;
 };
+
+function createStepRoute(step: number, showIntro: boolean, showExplanation: boolean, showSummary: boolean, contactPicker: "lender" | "realtor" | null): StepRoute {
+  return { step, showIntro, showExplanation, showSummary, contactPicker, returnToSummary: false };
+}
 
 function getQuestionStepName(question: Question) {
   return question.key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
@@ -696,44 +721,47 @@ function getRouteFromStepName(stepName: string | null): StepRoute {
   const normalizedStepName = stepName?.trim().toLowerCase() ?? "";
 
   if (!normalizedStepName || normalizedStepName === "what-this-is" || normalizedStepName === "intro") {
-    return { step: 0, showIntro: true, showExplanation: false, showSummary: false, contactPicker: null };
+    return createStepRoute(0, true, false, false, null);
   }
 
   if (normalizedStepName === "select-lender" || normalizedStepName === "lenders") {
-    return { step: questions.length - 1, showIntro: false, showExplanation: true, showSummary: true, contactPicker: "lender" };
+    return createStepRoute(questions.length - 1, false, true, true, "lender");
   }
 
   if (normalizedStepName === "select-realtor" || normalizedStepName === "realtors") {
-    return { step: questions.length - 1, showIntro: false, showExplanation: true, showSummary: true, contactPicker: "realtor" };
+    return createStepRoute(questions.length - 1, false, true, true, "realtor");
   }
 
   if (normalizedStepName === "ways-to-make-buying-work" || normalizedStepName === "buying-alternatives") {
-    return { step: questions.length - 1, showIntro: false, showExplanation: true, showSummary: true, contactPicker: null };
+    return createStepRoute(questions.length - 1, false, true, true, null);
   }
 
   if (normalizedStepName === "summary-next-steps" || normalizedStepName === "summary") {
-    return { step: questions.length - 1, showIntro: false, showExplanation: true, showSummary: true, contactPicker: null };
+    return createStepRoute(questions.length - 1, false, true, true, null);
   }
 
   if (normalizedStepName === "down-payment-assistance") {
-    return { step: questions.length - 1, showIntro: false, showExplanation: false, showSummary: false, contactPicker: null };
+    return createStepRoute(questions.length - 1, false, false, false, null);
   }
 
   const isImpactStep = normalizedStepName.endsWith("-impact");
   const questionName = isImpactStep ? normalizedStepName.slice(0, -"-impact".length) : normalizedStepName;
   const questionIndex = questions.findIndex((question) => getQuestionStepName(question) === questionName);
 
-  if (questionIndex === -1) return { step: 0, showIntro: true, showExplanation: false, showSummary: false, contactPicker: null };
+  if (questionIndex === -1) return createStepRoute(0, true, false, false, null);
 
   if (isImpactStep && questions[questionIndex].key === "location") {
-    return { step: Math.min(questions.length - 1, questionIndex + 1), showIntro: false, showExplanation: false, showSummary: false, contactPicker: null };
+    return createStepRoute(Math.min(questions.length - 1, questionIndex + 1), false, false, false, null);
   }
 
-  return { step: questionIndex, showIntro: false, showExplanation: isImpactStep, showSummary: false, contactPicker: null };
+  return createStepRoute(questionIndex, false, isImpactStep, false, null);
 }
 
 function getRouteFromUrl() {
-  return getRouteFromStepName(new URLSearchParams(window.location.search).get("step"));
+  const searchParams = new URLSearchParams(window.location.search);
+  const route = getRouteFromStepName(searchParams.get("step"));
+  route.returnToSummary = searchParams.get("returnTo") === "summary" && !route.showIntro && !route.showSummary && !route.contactPicker;
+  return route;
 }
 
 const baseColoradoLocations = [
@@ -1256,6 +1284,14 @@ function normalizeLocations(value: unknown) {
   return values.filter((location): location is string => coloradoLocations.some((locationOption) => locationOption.name === location));
 }
 
+function hasAnswerValue(answers: Answers, key: QuestionKey) {
+  const value = answers[key];
+
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === "number") return Number.isFinite(value);
+  return value !== "";
+}
+
 function getCheapestLocation(locations: string[]) {
   return [...normalizeLocations(locations)].sort((first, second) => getLocationMultiplier(first) - getLocationMultiplier(second))[0] ?? "";
 }
@@ -1482,7 +1518,6 @@ function estimateHousingForBedrooms(bedrooms: number, location: string) {
   const locationMultiplier = getLocationMultiplier(location);
   const estimatedSquareFeet = bedroomCount <= 0 ? 0 : 850 + bedroomCount * 325;
   const estimatedPrice = Math.round(estimatedSquareFeet * 315 * locationMultiplier);
-  const annualHousingCost = estimatedPrice * 0.081;
   const rentMultiplier = 0.74 + locationMultiplier * 0.26;
   const baseMonthlyRent = bedroomCount <= 0 ? 0 : baseMonthlyRentByBedrooms[Math.min(bedroomCount, 6)];
 
@@ -1490,9 +1525,32 @@ function estimateHousingForBedrooms(bedrooms: number, location: string) {
     bedroomCount,
     estimatedPrice,
     estimatedSquareFeet,
-    monthlyMortgage: Math.round(annualHousingCost / 12),
+    monthlyMortgage: estimateMonthlyMortgagePayment(estimatedPrice, estimatedPrice * 0.035),
     monthlyRent: Math.round(baseMonthlyRent * rentMultiplier),
   };
+}
+
+function getMortgageInterestRateForCredit(score: number) {
+  if (score >= 800) return 0.0625;
+  if (score >= 740) return 0.065;
+  if (score >= 700) return 0.0675;
+  if (score >= 660) return 0.071;
+  if (score >= 620) return 0.075;
+  return 0.0825;
+}
+
+function estimateMonthlyMortgagePayment(estimatedPrice: number, downPayment: number, annualInterestRate = 0.0675) {
+  if (estimatedPrice <= 0) return 0;
+
+  const appliedDownPayment = Math.max(0, Math.min(estimatedPrice * 0.95, downPayment));
+  const loanAmount = Math.max(0, estimatedPrice - appliedDownPayment);
+  const monthlyInterestRate = annualInterestRate / 12;
+  const paymentCount = 360;
+  const principalAndInterest = loanAmount * (monthlyInterestRate * (1 + monthlyInterestRate) ** paymentCount) / ((1 + monthlyInterestRate) ** paymentCount - 1);
+  const taxesAndInsurance = (estimatedPrice * 0.0145) / 12;
+  const mortgageInsurance = appliedDownPayment / estimatedPrice < 0.2 ? (loanAmount * 0.0065) / 12 : 0;
+
+  return Math.round(principalAndInterest + taxesAndInsurance + mortgageInsurance);
 }
 
 function calculateScore(answers: Answers, answeredKeys: QuestionKey[], modeledLocationPreference?: string | null) {
@@ -1501,66 +1559,78 @@ function calculateScore(answers: Answers, answeredKeys: QuestionKey[], modeledLo
   const locationMultiplier = getLocationMultiplier(modeledLocation);
   const housingEstimate = estimateHousingForBedrooms(answers.bedrooms, modeledLocation);
   const estimatedSquareFeet = housingEstimate.estimatedSquareFeet;
-  const estimatedPrice = housingEstimate.estimatedPrice;
-  const annualHousingCost = estimatedPrice * 0.081;
+  const marketEstimatedPrice = housingEstimate.estimatedPrice;
+  const selectedAffordableProgramId = answers.affordablePrograms[0];
+  const selectedAffordablePrograms = selectedAffordableProgramId ? affordableHomeownershipPrograms.filter((program) => program.id === selectedAffordableProgramId) : [];
+  const affordablePriceReductionRate = selectedAffordablePrograms[0]?.priceReductionRate ?? 0;
+  const affordablePriceReductionAmount = Math.round(marketEstimatedPrice * affordablePriceReductionRate);
+  const estimatedPrice = Math.max(0, marketEstimatedPrice - affordablePriceReductionAmount);
   const income = Number(answers.income) || 0;
   const householdSize = Math.max(1, Math.min(8, Math.round(answers.householdSize || 1)));
-  const housingRatio = annualHousingCost / Math.max(income, 1);
-  const householdSizeAdjustment = Math.max(0, householdSize - 2) * 0.015;
-  const affordabilityRatio = housingRatio + householdSizeAdjustment;
-  const incomeScore = Math.max(0, Math.min(100, 100 - (affordabilityRatio - 0.23) * 230));
   const locationScore = Math.max(0, Math.min(100, 112 - locationMultiplier * 40));
   const bedroomScore = Math.max(0, Math.min(100, 106 - answers.bedrooms * 9));
   const creditScore = Math.max(0, Math.min(100, (answers.creditScore - 560) / 2.9));
   const assistanceProgram = getAssistanceProgram(answers.assistanceProgram);
   const targetDownPayment = estimatedPrice * 0.035;
+  const savings = Number(answers.savings) || 0;
+  const savingsDeductions = estimatedPrice * 0.025 + 3000;
+  const savingsTarget = targetDownPayment + savingsDeductions;
+  const savingsAvailableForDownPayment = Math.max(0, savings - savingsDeductions);
+  const extraSavingsForDownPayment = Math.max(0, savings - savingsTarget);
   const assistanceAmount = Math.min(targetDownPayment, estimateAssistanceAmount(assistanceProgram, estimatedPrice));
-  const assistanceScore = Math.max(0, Math.min(100, 48 + (assistanceAmount / Math.max(targetDownPayment, 1)) * 42));
-  const selectedAffordableProgramId = answers.affordablePrograms[0];
-  const selectedAffordablePrograms = selectedAffordableProgramId ? affordableHomeownershipPrograms.filter((program) => program.id === selectedAffordableProgramId) : [];
-  const buyingStrategyBoost = Math.min(28, selectedAffordablePrograms.reduce((sum, program) => sum + program.scoreImpact, 0));
-
-  const weights: Record<QuestionKey, number> = {
-    location: 0.2,
-    income: 0.37,
-    householdSize: 0,
-    bedrooms: 0.18,
-    creditScore: 0.17,
-    assistanceProgram: 0.08,
-    affordablePrograms: 0,
-  };
-
+  const appliedDownPayment = Math.min(estimatedPrice * 0.95, targetDownPayment + assistanceAmount + extraSavingsForDownPayment);
+  const mortgageInterestRate = getMortgageInterestRateForCredit(answers.creditScore);
+  const monthlyPayment = estimateMonthlyMortgagePayment(estimatedPrice, appliedDownPayment, mortgageInterestRate);
+  const annualHousingCost = monthlyPayment * 12;
+  const affordableMonthlyPayment = (income / 12) * PAYMENT_TO_INCOME_TARGET;
+  const housingRatio = annualHousingCost / Math.max(income, 1);
+  const householdSizeAdjustment = Math.max(0, householdSize - 2) * 0.015;
+  const affordabilityRatio = housingRatio + householdSizeAdjustment;
+  const monthlyPaymentReadiness = Math.max(0, Math.min(100, (affordableMonthlyPayment / Math.max(monthlyPayment, 1)) * 100));
+  const downPaymentReadiness = Math.max(0, Math.min(100, ((savings + assistanceAmount) / Math.max(savingsTarget, 1)) * 100));
   const partialScores: Record<QuestionKey, number> = {
     location: locationScore,
-    income: incomeScore,
+    income: monthlyPaymentReadiness,
+    incomeFrequency: 50,
     householdSize: 50,
     bedrooms: bedroomScore,
+    savings: downPaymentReadiness,
     creditScore,
-    assistanceProgram: assistanceScore,
-    affordablePrograms: 50,
+    assistanceProgram: downPaymentReadiness,
+    affordablePrograms: Math.max(0, Math.min(100, monthlyPaymentReadiness * 0.5 + downPaymentReadiness * 0.5)),
   };
 
-  const activeWeight = answeredKeys.reduce((sum, key) => sum + weights[key], 0);
-  const weightedScore = answeredKeys.reduce((sum, key) => sum + partialScores[key] * weights[key], 0) / Math.max(activeWeight, 1);
-  const score = Math.round(Math.max(0, Math.min(100, (weightedScore || 50) + buyingStrategyBoost)));
-  const recommendation = score >= 58 ? "Leaning buy" : score <= 42 ? "Leaning rent" : "Too close to call";
+  const hasHouseSize = answeredKeys.includes("bedrooms");
+  const score = hasHouseSize ? Math.round(Math.max(0, Math.min(100, monthlyPaymentReadiness * 0.5 + downPaymentReadiness * 0.5))) : 0;
+  const recommendation = score >= 80 ? "Ready to buy" : score >= 50 ? "Getting close" : "Getting ready";
 
   return {
     score,
     recommendation,
     modeledLocation,
+    marketEstimatedPrice,
     estimatedPrice,
     estimatedSquareFeet,
-    monthlyPayment: housingEstimate.monthlyMortgage,
+    monthlyPayment,
     monthlyRent: housingEstimate.monthlyRent,
     housingRatio,
     affordabilityRatio,
     householdSizeAdjustment,
     targetDownPayment,
+    savings,
+    savingsDeductions,
+    savingsTarget,
+    savingsAvailableForDownPayment,
+    extraSavingsForDownPayment,
+    mortgageInterestRate,
+    paymentToIncomeTarget: PAYMENT_TO_INCOME_TARGET,
     assistanceAmount,
-    cashNeededAfterAssistance: Math.max(0, targetDownPayment - assistanceAmount),
+    cashNeededAfterAssistance: Math.max(0, savingsTarget - savings - assistanceAmount),
     selectedAffordablePrograms,
-    buyingStrategyBoost,
+    affordablePriceReductionRate,
+    affordablePriceReductionAmount,
+    monthlyPaymentReadiness,
+    downPaymentReadiness,
     partialScores,
   };
 }
@@ -1573,49 +1643,55 @@ function explainImpact(question: Question, answers: Answers, result: ReturnType<
     const locationPhrase = selectedLocations.length > 1 ? `${modeledLocation}, the selected estimate location` : modeledLocation || "Colorado";
 
     return multiplier > 1.25
-      ? `${locationPhrase} is modeled as a ${getMarketLabel(multiplier)}, so renting gets stronger unless income can support the higher purchase price.`
-      : `${locationPhrase} is modeled as a ${getMarketLabel(multiplier)}, which makes the buying case easier than in the most expensive counties.`;
+      ? `${locationPhrase} is modeled as a ${getMarketLabel(multiplier)}, so the higher purchase price may hurt your ability to buy a home unless income can support it.`
+      : `${locationPhrase} is modeled as a ${getMarketLabel(multiplier)}, which may help your ability to buy a home compared with the most expensive counties.`;
   }
 
   if (question.key === "income") {
     const householdPhrase = answers.householdSize > 2 ? ` The ${answers.householdSize}-person household adds everyday cost pressure to the affordability score.` : "";
 
-    if (result.affordabilityRatio > 0.36) return `At this income, the estimated housing cost is high relative to earnings, so renting is safer.${householdPhrase}`;
-    if (result.affordabilityRatio < 0.27) return `This income appears to support the estimated payment comfortably, which moves the result toward buying.${householdPhrase}`;
-    return `The payment may be manageable, but the budget is not wide enough yet to make buying an obvious choice.${householdPhrase}`;
+    if (result.affordabilityRatio > 0.36) return `At this income, the estimated housing cost is high relative to earnings, which may hurt your ability to buy a home.${householdPhrase}`;
+    if (result.affordabilityRatio < 0.27) return `This income appears to support the estimated payment comfortably, which may help your ability to buy a home.${householdPhrase}`;
+    return `The payment may be manageable, but the budget is not wide enough yet to make buying a home feel clearly affordable.${householdPhrase}`;
+  }
+
+  if (question.key === "savings") {
+    if (result.downPaymentReadiness >= 100) return "Your savings appear to cover the modeled down payment plus estimated extra costs for this home size.";
+    if (result.savings > 0) return `Your savings cover part of the modeled down payment and extra-cost target, leaving about ${formatCurrency(result.cashNeededAfterAssistance)}.`;
+    return "Without savings entered, the upfront down payment and extra-cost target remains the biggest readiness gap.";
   }
 
   if (question.key === "bedrooms") {
     if (answers.bedrooms <= 0) return "An empty lot removes the modeled house size, so this prototype treats the purchase price as much lower than a finished home.";
     return answers.bedrooms > 4
-      ? "A higher bedroom count implies a larger home, raising the estimated price and pushing the result toward renting."
-      : "This bedroom count keeps the target home more contained, which helps the buying case.";
+      ? "A higher bedroom count implies a larger home, raising the estimated price and potentially hurting your ability to buy a home."
+      : "This bedroom count keeps the target home more contained, which may help your ability to buy a home.";
   }
 
   if (question.key === "assistanceProgram") {
     const selectedAffordableProgram = result.selectedAffordablePrograms[0];
-    if (selectedAffordableProgram) return `${selectedAffordableProgram.name} may reduce the purchase-price hurdle through an affordable ownership model, but inventory, income limits, and resale rules need verification.`;
+    if (selectedAffordableProgram) return `${selectedAffordableProgram.name} lowers the modeled purchase price by about ${formatCurrency(result.affordablePriceReductionAmount)}, which reduces both the monthly payment estimate and the upfront cash target while inventory, income limits, and resale rules still need verification.`;
 
     const program = getAssistanceProgram(answers.assistanceProgram);
 
     if (program.id === "none") return `No assistance leaves the estimated 3.5% down payment at ${formatCurrency(result.targetDownPayment)}, so the upfront cash hurdle stays higher.`;
-    return `${program.title} could reduce the modeled upfront cash need by about ${formatCurrency(result.assistanceAmount)}, leaving ${formatCurrency(result.cashNeededAfterAssistance)} before closing costs.`;
+    return `${program.title} could reduce the modeled upfront savings gap by about ${formatCurrency(result.assistanceAmount)}, leaving ${formatCurrency(result.cashNeededAfterAssistance)}.`;
   }
 
   if (answers.creditScore >= 740) return "A strong credit score should improve the rate estimate, making ownership more attractive.";
-  if (answers.creditScore < 660) return "This credit score likely means a higher interest rate, so renting is favored until financing improves.";
-  return "This credit score is workable, but improving it could materially strengthen the buying case.";
+  if (answers.creditScore < 660) return "This credit score likely means a higher interest rate, which may hurt your ability to buy a home until financing improves.";
+  return "This credit score is workable, but improving it could materially strengthen your ability to buy a home.";
 }
 
 function getQuestionResources(question: Question, answers: Answers, result: ReturnType<typeof calculateScore>): Resource[] {
   if (question.key === "location") {
     const modeledLocation = result.modeledLocation || "Colorado";
-    const locationQuery = encodeURIComponent(`${modeledLocation} homes for sale and rent`);
+    const locationQuery = encodeURIComponent(`${modeledLocation} homes for sale`);
 
     return [
       {
         title: `${modeledLocation} market check`,
-        description: `Compare recent sale prices and rents in ${modeledLocation} before deciding whether this modeled ${getMarketLabel(getLocationMultiplier(modeledLocation))} matches your search area.`,
+        description: `Compare recent sale prices in ${modeledLocation} before deciding whether this modeled ${getMarketLabel(getLocationMultiplier(modeledLocation))} matches your search area.`,
         url: `https://www.zillow.com/homes/${locationQuery}_rb/`,
       },
       {
@@ -1630,7 +1706,7 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
     return [
       {
         title: "Payment-to-income target",
-        description: `This prototype estimates housing costs at ${Math.round(result.housingRatio * 100)}% of income, then scores affordability at ${Math.round(result.affordabilityRatio * 100)}% after household size; many buyers use 28% - 36% as a planning range.`,
+        description: `This prototype estimates housing costs at ${Math.round(result.housingRatio * 100)}% of income, then scores affordability at ${Math.round(result.affordabilityRatio * 100)}% after household size; many buyers use 30% as a planning target with room up to 36% depending on the loan and budget.`,
         url: "https://www.consumerfinance.gov/owning-a-home/prepare/mortgage-affordability/",
       },
       {
@@ -1644,14 +1720,29 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
   if (question.key === "bedrooms") {
     return [
       {
-        title: "Rent vs. mortgage by size",
-        description: `For this selection, estimated rent is ${answers.bedrooms === 0 ? "not applicable" : formatCurrency(result.monthlyRent)} and estimated mortgage cost is ${formatCurrency(result.monthlyPayment)}.`,
+        title: "Mortgage cost by size",
+        description: `For this selection, the estimated mortgage cost is ${formatCurrency(result.monthlyPayment)}.`,
         url: "https://www.nerdwallet.com/mortgages/rent-vs-buy-calculator",
       },
       {
         title: "Right-size your search",
         description: "Try one bedroom fewer or a flexible office/guest room setup to see how much the target home size changes affordability.",
         url: "https://www.consumerfinance.gov/owning-a-home/prepare/decide-how-much-to-spend/",
+      },
+    ];
+  }
+
+  if (question.key === "savings") {
+    return [
+      {
+        title: "Down payment planning",
+        description: `For this modeled home size, the estimated 3.5% down payment is ${formatCurrency(result.targetDownPayment)} before any assistance is applied.`,
+        url: "https://www.consumerfinance.gov/owning-a-home/prepare/decide-how-much-to-spend/",
+      },
+      {
+        title: "Saving for upfront costs",
+        description: "Plan for closing costs and reserves in addition to the down payment so the purchase does not use every available dollar.",
+        url: "https://www.consumerfinance.gov/owning-a-home/prepare/check-your-spending/",
       },
     ];
   }
@@ -1681,123 +1772,10 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
     },
     {
       title: "Rate shopping",
-      description: "Compare pre-approval estimates from multiple lenders because even a small rate difference can change the buy-vs-rent result.",
+      description: "Compare pre-approval estimates from multiple lenders because even a small rate difference can change home-buying readiness.",
       url: "https://www.consumerfinance.gov/owning-a-home/explore-rates/",
     },
   ];
-}
-
-function HouseSizeSvg({ bedrooms, squareFeet, compact = false }: { bedrooms: number; squareFeet: number; compact?: boolean }) {
-  const bedroomCount = Math.max(0, Math.min(8, Math.round(bedrooms || 0)));
-  const isEmptyLot = bedroomCount === 0;
-  const houseWidth = 132 + bedroomCount * 18;
-  const houseHeight = 64 + bedroomCount * 4;
-  const houseX = (360 - houseWidth) / 2;
-  const houseY = 128 - houseHeight;
-  const roofPeakY = houseY - 42;
-  const windowCount = Math.min(bedroomCount, 6);
-  const windowSpacing = houseWidth / (windowCount + 1);
-
-  return (
-    <div className={`rounded-3xl border bg-gradient-to-b from-primary/10 to-white/80 ${compact ? "p-2" : "p-4"}`}>
-      {!compact ? (
-        <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-          <span className="font-semibold uppercase tracking-[0.2em] text-muted-foreground">House size</span>
-          <span className="font-bold text-primary">{isEmptyLot ? "Empty lot" : `~${squareFeet.toLocaleString()} sq ft`}</span>
-        </div>
-      ) : null}
-      <svg viewBox="0 0 360 180" role="img" aria-label={isEmptyLot ? "Empty lot with no house" : `Estimated house size for ${bedroomCount} bedrooms`} className={`${compact ? "h-20" : "h-44"} w-full overflow-visible`}>
-        <path d="M28 146 C88 128 134 158 190 140 S290 132 332 148" fill="none" stroke="hsl(var(--primary) / 0.25)" strokeWidth="12" strokeLinecap="round" />
-        {isEmptyLot ? (
-          <>
-            <rect x="74" y="78" width="212" height="68" rx="14" fill="hsl(var(--accent) / 0.45)" stroke="hsl(var(--primary))" strokeWidth="4" strokeDasharray="10 8" />
-            <path d="M104 126 C138 108 164 132 196 112 S244 102 260 124" fill="none" stroke="hsl(var(--primary) / 0.45)" strokeWidth="5" strokeLinecap="round" />
-            <text x="180" y="113" textAnchor="middle" className="fill-primary text-lg font-black">Empty lot</text>
-          </>
-        ) : (
-          <>
-            <rect x={houseX} y={houseY} width={houseWidth} height={houseHeight} rx="10" fill="hsl(var(--card))" stroke="hsl(var(--primary))" strokeWidth="4" />
-            <path d={`M${houseX - 12} ${houseY + 8} L180 ${roofPeakY} L${houseX + houseWidth + 12} ${houseY + 8} Z`} fill="hsl(var(--secondary))" stroke="hsl(var(--primary))" strokeWidth="4" strokeLinejoin="round" />
-            <rect x={180 - houseWidth * 0.08} y={houseY + houseHeight - 42} width={houseWidth * 0.16} height="42" rx="6" fill="hsl(var(--primary) / 0.22)" stroke="hsl(var(--primary))" strokeWidth="3" />
-            {Array.from({ length: windowCount }).map((_, index) => {
-              const x = houseX + windowSpacing * (index + 1) - 12;
-              return <rect key={index} x={x} y={houseY + 22} width="24" height="22" rx="5" fill="hsl(var(--accent))" stroke="hsl(var(--primary))" strokeWidth="3" />;
-            })}
-          </>
-        )}
-      </svg>
-    </div>
-  );
-}
-
-function WalkingPersonSvg({ direction }: { direction: "rent" | "buy" }) {
-  const facingBuy = direction === "buy";
-
-  return (
-    <svg
-      viewBox="0 0 64 72"
-      aria-hidden="true"
-      className={`h-6 w-6 overflow-visible ${facingBuy ? "" : "-scale-x-100"}`}
-    >
-      <path d="M14 64 C26 58 40 58 52 64" fill="none" stroke="hsl(var(--foreground) / 0.18)" strokeWidth="5" strokeLinecap="round" />
-      <circle cx="36" cy="13" r="8" fill="hsl(var(--secondary))" stroke="hsl(var(--foreground))" strokeWidth="3" />
-      <path d="M34 23 L31 41" fill="none" stroke="hsl(var(--foreground))" strokeWidth="6" strokeLinecap="round" />
-      <g>
-        <animateTransform attributeName="transform" type="rotate" values="-18 32 30; 20 32 30; -18 32 30" dur="0.7s" repeatCount="indefinite" />
-        <path d="M32 28 L18 39" fill="none" stroke="hsl(var(--primary))" strokeWidth="5" strokeLinecap="round" />
-      </g>
-      <g>
-        <animateTransform attributeName="transform" type="rotate" values="18 32 30; -20 32 30; 18 32 30" dur="0.7s" repeatCount="indefinite" />
-        <path d="M32 28 L48 35" fill="none" stroke="hsl(var(--primary))" strokeWidth="5" strokeLinecap="round" />
-      </g>
-      <g>
-        <animateTransform attributeName="transform" type="rotate" values="20 31 41; -18 31 41; 20 31 41" dur="0.7s" repeatCount="indefinite" />
-        <path d="M31 41 L19 58" fill="none" stroke="hsl(var(--foreground))" strokeWidth="6" strokeLinecap="round" />
-      </g>
-      <g>
-        <animateTransform attributeName="transform" type="rotate" values="-18 31 41; 20 31 41; -18 31 41" dur="0.7s" repeatCount="indefinite" />
-        <path d="M31 41 L48 56" fill="none" stroke="hsl(var(--foreground))" strokeWidth="6" strokeLinecap="round" />
-      </g>
-    </svg>
-  );
-}
-
-function WhatThisIsPage() {
-  return (
-    <div className="space-y-4">
-      <div className="rounded-3xl border border-primary/15 bg-gradient-to-br from-primary/10 to-white/85 p-4">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Quick planning tool</p>
-        <h3 className="mt-2 text-xl font-black tracking-tight">A first-pass rent-vs-buy guide for Colorado homeownership</h3>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          This prototype helps you explore whether renting or buying may make more sense based on location, income, home size, credit, and down payment assistance.
-        </p>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:items-center">
-        {[
-          { title: "Answer a few prompts", description: "Share rough planning inputs instead of exact financial documents." },
-          { title: "Watch the result move", description: "Each answer updates the rent-to-buy indicator and explains why." },
-          { title: "Find next steps", description: "Review assistance programs and resources to verify with professionals." },
-        ].map((item, index) => (
-          <div key={item.title} className="contents">
-            <div className="rounded-3xl border bg-white/75 p-4">
-              <p className="font-black tracking-tight">{item.title}</p>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.description}</p>
-            </div>
-            {index < 2 ? (
-              <div className="flex justify-center text-primary" aria-hidden="true">
-                <ArrowRight className="h-6 w-6 rotate-90 sm:rotate-0" />
-              </div>
-            ) : null}
-          </div>
-        ))}
-      </div>
-
-      <p className="rounded-3xl bg-muted/70 p-4 text-sm leading-6 text-muted-foreground">
-        Treat the numbers as educational estimates, not loan approval, legal advice, or a replacement for a lender, realtor, housing counselor, or tax professional.
-      </p>
-    </div>
-  );
 }
 
 function RentVsBuyGraph({ result }: { result: ReturnType<typeof calculateScore> }) {
@@ -2055,9 +2033,13 @@ function AssistancePathChoice({
               <span className={`mt-1 h-4 w-4 shrink-0 rounded-full border-2 ${selectedPath === "none" ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
             </div>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">Use your own savings and skip eligibility paperwork, income limits, resale limits, or second-loan terms.</p>
-            <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[0.65rem] font-black text-secondary-foreground">1</span>
-              Bring your own funds and avoid program rules.
+            <div className="mt-3 grid gap-1">
+              {["Find the house", "Bring your own funds"].map((step, index) => (
+                <div key={step} className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[0.65rem] font-black text-secondary-foreground">{index + 1}</span>
+                  {step}
+                </div>
+              ))}
             </div>
             <div className="mt-4 rounded-3xl bg-white/80 p-3">
               <div className="rounded-2xl bg-white/75 p-3">
@@ -2358,7 +2340,7 @@ function AffordableHomeownershipProgramList({ locations, selectedProgramIds, onT
   );
 }
 
-function CreditScoreExplanation({ answers }: { answers: Answers; result: ReturnType<typeof calculateScore> }) {
+function CreditScoreExplanation({ answers, result }: { answers: Answers; result: ReturnType<typeof calculateScore> }) {
   const currentBand = getCreditScoreOption(answers.creditScore);
   const milestone = getCreditScoreMilestone(answers.creditScore);
   const scorePosition = Math.max(0, Math.min(100, ((answers.creditScore - 560) / (850 - 560)) * 100));
@@ -2378,7 +2360,7 @@ function CreditScoreExplanation({ answers }: { answers: Answers; result: ReturnT
           <span>{currentBand.range}</span>
           <span className="text-primary">{currentBand.label}</span>
         </div>
-        <div className="relative h-4 rounded-full bg-gradient-to-r from-accent via-secondary to-primary">
+        <div className="relative h-4 rounded-full bg-gradient-to-r from-primary/25 via-primary/60 to-primary">
           <div className="absolute top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-primary shadow-lg" style={{ left: `${scorePosition}%` }} />
         </div>
         <div className="mt-2 flex justify-between text-xs font-semibold text-muted-foreground">
@@ -2393,195 +2375,19 @@ function CreditScoreExplanation({ answers }: { answers: Answers; result: ReturnT
       </div>
 
       <div className="rounded-3xl bg-white/75 p-4">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Modeled rate impact</p>
+        <p className="mt-2 text-sm font-semibold leading-6">
+          This tier is modeled at {(result.mortgageInterestRate * 100).toFixed(2)}%, so the readiness bar changes only through the estimated monthly payment.
+        </p>
+      </div>
+
+      <div className="rounded-3xl bg-white/75 p-4">
         <p className="font-black tracking-tight">How to improve the modeled result</p>
         <ul className="mt-2 space-y-2 text-sm leading-6 text-muted-foreground">
           <li>• Keep every payment on time while preparing for pre-approval.</li>
           <li>• Pay down revolving balances before applying, especially cards near their limits.</li>
           <li>• Avoid opening new debt or financing large purchases until after closing.</li>
         </ul>
-      </div>
-    </div>
-  );
-}
-
-function ContactCard({ contact, selected, compact = false, onSelect }: { contact: Contact; selected?: boolean; compact?: boolean; onSelect?: (contactId: string) => void }) {
-  const content = (
-    <>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="font-black tracking-tight">{contact.name}</p>
-          <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{contact.company}</p>
-        </div>
-        {selected !== undefined ? <span className={`h-4 w-4 rounded-full border-2 ${selected ? "border-primary bg-primary" : "border-muted-foreground/40"}`} /> : null}
-      </div>
-
-      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
-        {contact.phone ? <p className="rounded-2xl bg-white/80 p-2.5"><span className="text-muted-foreground">Phone </span><span className="font-bold">{contact.phone}</span></p> : null}
-        {contact.email ? <p className="rounded-2xl bg-white/80 p-2.5 break-words"><span className="text-muted-foreground">Email </span><span className="font-bold">{contact.email}</span></p> : null}
-        {contact.nmls ? <p className="rounded-2xl bg-white/80 p-2.5"><span className="text-muted-foreground">NMLS </span><span className="font-bold">{contact.nmls}</span></p> : null}
-        {contact.award ? <p className="rounded-2xl bg-white/80 p-2.5"><span className="text-muted-foreground">Award </span><span className="font-bold">{contact.award}</span></p> : null}
-      </div>
-
-      {!compact ? (
-        <>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">Serves: {contact.countiesServed.includes("all") ? "All listed Colorado counties" : contact.countiesServed.join(", ")}</p>
-          {contact.languages ? <p className="mt-1 text-sm leading-6 text-muted-foreground">Languages: {contact.languages}</p> : null}
-          {contact.specialties?.length ? <p className="mt-1 text-sm leading-6 text-muted-foreground">Specialties: {contact.specialties.join(", ")}</p> : null}
-          {contact.notes ? <p className="mt-2 text-sm leading-6 text-muted-foreground">{contact.notes}</p> : null}
-          {contact.website ? (
-            <a href={contact.website} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center text-sm font-bold text-primary underline-offset-4 hover:underline">
-              Website
-              <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
-            </a>
-          ) : null}
-        </>
-      ) : null}
-    </>
-  );
-
-  if (!onSelect) {
-    return <div className="rounded-3xl border bg-white/75 p-4">{content}</div>;
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(contact.id)}
-      className={`rounded-3xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selected ? "border-primary bg-primary/10 shadow-glow" : "bg-white/75"}`}
-    >
-      {content}
-    </button>
-  );
-}
-
-function ContactPickerPage({ type, contacts, selectedContactId, locations, onSelect }: { type: "lender" | "realtor"; contacts: Contact[]; selectedContactId: string | null; locations: string[]; onSelect: (contactId: string) => void }) {
-  const sortedContacts = sortContactsForLocations(contacts, locations);
-  const countyNames = getCountyNames(locations);
-  const matchingCount = sortedContacts.filter((contact) => contactMatchesCounty(contact, countyNames)).length;
-
-  return (
-    <div className="space-y-4">
-      <div className="rounded-3xl border border-primary/15 bg-primary/10 p-4">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Select a {type}</p>
-        <h3 className="mt-1 text-xl font-black tracking-tight">Choose who you want to follow up with</h3>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          {countyNames.length ? `Showing ${matchingCount} ${type}s with coverage in ${countyNames.join(", ")} first.` : `Choose a location to prioritize ${type}s by county.`} Selecting one returns you to the summary.
-        </p>
-      </div>
-
-      <div className="grid gap-3">
-        {sortedContacts.map((contact) => (
-          <ContactCard key={contact.id} contact={contact} selected={selectedContactId === contact.id} onSelect={onSelect} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function SummaryNextSteps({ answers, result, selectedLender, selectedRealtor, onFindLender, onFindRealtor }: { answers: Answers; result: ReturnType<typeof calculateScore>; selectedLender: Contact | null; selectedRealtor: Contact | null; onFindLender: () => void; onFindRealtor: () => void }) {
-  const program = getAssistanceProgram(answers.assistanceProgram);
-  const selectedAffordableProgram = result.selectedAffordablePrograms[0];
-  const programUrl = assistanceProgramLinks[program.id];
-  const bedroomsLabel = answers.bedrooms === 0 ? "empty lot" : `${answers.bedrooms} bedroom${answers.bedrooms === 1 ? "" : "s"}`;
-  const selectedLocations = normalizeLocations(answers.location);
-
-  return (
-    <div className="space-y-4">
-      <div className="rounded-3xl border border-primary/15 bg-primary/10 p-4">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Your result</p>
-        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-3xl font-black tracking-tight">{result.recommendation}</p>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Based on your modeled choices, this plan is {result.recommendation.toLowerCase()}.
-            </p>
-          </div>
-          <div className="rounded-2xl bg-white/80 px-4 py-3 text-sm font-bold text-primary">
-            {formatCurrency(result.monthlyPayment)} estimated monthly payment
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-3xl border bg-white/75 p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Location</p>
-          <p className="mt-2 font-black tracking-tight">{getLocationsLabel(answers.location)}</p>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            {selectedLocations.length > 1 ? `Home cost modeled with the selected estimate location: ${result.modeledLocation}.` : `Modeled as a ${getMarketLabel(getLocationMultiplier(result.modeledLocation))}.`}
-          </p>
-        </div>
-        <div className="rounded-3xl border bg-white/75 p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Income</p>
-          <p className="mt-2 font-black tracking-tight">{answers.income === "" ? "Not entered" : formatCurrency(answers.income)}</p>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            {answers.householdSize} person household; score uses a {Math.round(result.affordabilityRatio * 100)}% household-adjusted affordability ratio.
-          </p>
-        </div>
-        <div className="rounded-3xl border bg-white/75 p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Home target</p>
-          <p className="mt-2 font-black capitalize tracking-tight">{bedroomsLabel}</p>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">Estimated price: {formatCurrency(result.estimatedPrice)}.</p>
-        </div>
-        <div className="rounded-3xl border bg-white/75 p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Credit</p>
-          <p className="mt-2 font-black tracking-tight">{getCreditScoreOption(answers.creditScore).range}</p>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">{getCreditScoreMilestone(answers.creditScore)}.</p>
-        </div>
-      </div>
-
-      <div className="rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">{selectedAffordableProgram ? "Affordable ownership choice" : "Down payment choice"}</p>
-        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-xl font-black tracking-tight">{selectedAffordableProgram ? selectedAffordableProgram.name : program.title}</p>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              {selectedAffordableProgram ? `${selectedAffordableProgram.modelType} serving ${selectedAffordableProgram.serviceArea}. Verify inventory, income limits, and lender requirements before relying on this path.` : `This estimates ${formatCurrency(result.assistanceAmount)} in assistance, leaving ${formatCurrency(result.cashNeededAfterAssistance)} before closing costs.`}
-            </p>
-          </div>
-          {selectedAffordableProgram || programUrl ? (
-            <a href={selectedAffordableProgram?.website ?? programUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center rounded-full bg-secondary px-4 py-2 text-sm font-bold text-secondary-foreground transition hover:bg-secondary/80">
-              Program details
-              <ExternalLink className="ml-2 h-4 w-4" />
-            </a>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="rounded-3xl border bg-white/75 p-4">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Next steps</p>
-        <h3 className="mt-1 text-xl font-black tracking-tight">Find a lender and a realtor</h3>
-        <ul className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
-          <li>• Talk with a mortgage lender or housing counselor to confirm loan options, rates, cash-to-close, and assistance eligibility.</li>
-          <li>• Ask whether the lender is approved for your selected down payment assistance program before relying on the estimate.</li>
-          <li>• Find a realtor who knows your target area and can compare homes, HOA costs, inspection needs, and resale tradeoffs.</li>
-        </ul>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <Button type="button" onClick={onFindLender} className="h-auto justify-between rounded-2xl px-4 py-3 text-left">
-            <span>{selectedLender ? "Change lender" : "Find a lender"}</span>
-            <ArrowRight className="ml-3 h-4 w-4" />
-          </Button>
-          <Button type="button" onClick={onFindRealtor} className="h-auto justify-between rounded-2xl px-4 py-3 text-left">
-            <span>{selectedRealtor ? "Change realtor" : "Find a realtor"}</span>
-            <ArrowRight className="ml-3 h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-3 rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Selected lender</p>
-            {selectedLender ? <button type="button" onClick={onFindLender} className="text-xs font-bold text-primary underline-offset-4 hover:underline">Change</button> : null}
-          </div>
-          {selectedLender ? <ContactCard contact={selectedLender} compact /> : <p className="text-sm leading-6 text-muted-foreground">No lender selected yet.</p>}
-        </div>
-        <div className="space-y-3 rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Selected realtor</p>
-            {selectedRealtor ? <button type="button" onClick={onFindRealtor} className="text-xs font-bold text-primary underline-offset-4 hover:underline">Change</button> : null}
-          </div>
-          {selectedRealtor ? <ContactCard contact={selectedRealtor} compact /> : <p className="text-sm leading-6 text-muted-foreground">No realtor selected yet.</p>}
-        </div>
       </div>
     </div>
   );
@@ -2601,8 +2407,10 @@ function App() {
       ...initialAnswers,
       ...parsed,
       location,
+      incomeFrequency: ["weekly", "biweekly", "monthly", "annual"].includes(parsed.incomeFrequency ?? "") ? parsed.incomeFrequency! : initialAnswers.incomeFrequency,
       householdSize: Math.max(1, Math.min(8, Math.round(parsed.householdSize ?? initialAnswers.householdSize))),
       bedrooms: Math.max(1, parsed.bedrooms ?? parsed.rooms ?? initialAnswers.bedrooms),
+      savings: parsed.savings === "" || parsed.savings === undefined ? initialAnswers.savings : Math.max(0, Number(parsed.savings) || 0),
       affordablePrograms: Array.isArray(parsed.affordablePrograms) ? parsed.affordablePrograms.slice(0, 1) : [],
     };
   });
@@ -2612,6 +2420,7 @@ function App() {
   const [showExplanation, setShowExplanation] = useState(initialRoute.showExplanation);
   const [showSummary, setShowSummary] = useState(initialRoute.showSummary);
   const [contactPicker, setContactPicker] = useState<"lender" | "realtor" | null>(initialRoute.contactPicker);
+  const [returnToSummary, setReturnToSummary] = useState(initialRoute.returnToSummary);
   const [assistanceSelectionMode, setAssistanceSelectionMode] = useState<AssistanceSelectionMode>(() => {
     if (answers.affordablePrograms.length) return "affordable";
     if (answers.assistanceProgram !== "none") return "dpa";
@@ -2631,7 +2440,7 @@ function App() {
   const [selectedRealtorId, setSelectedRealtorId] = useState(() => window.localStorage.getItem(SELECTED_REALTOR_STORAGE_KEY));
   const [modeledLocationOverride, setModeledLocationOverride] = useState(() => window.localStorage.getItem(MODELED_LOCATION_STORAGE_KEY));
 
-  const answeredKeys = useMemo(() => (showIntro ? [] : questions.slice(0, showSummary ? questions.length : step + 1).map((question) => question.key)), [step, showIntro, showSummary]);
+  const answeredKeys = useMemo(() => questions.filter((question) => hasAnswerValue(answers, question.key)).map((question) => question.key), [answers]);
   const currentQuestion = questions[step];
   const result = useMemo(() => calculateScore(answers, answeredKeys, modeledLocationOverride), [answers, answeredKeys, modeledLocationOverride]);
   const answerValue = answers[currentQuestion.key];
@@ -2639,7 +2448,10 @@ function App() {
   const totalPages = questions.length * 2 + 1;
   const pageIndex = showIntro ? 1 : showSummary ? totalPages : step === 0 ? 2 : step * 2 + (showExplanation ? 2 : 1);
   const resources = getQuestionResources(currentQuestion, answers, result);
-  const walkingDirection = result.score < 50 ? "rent" : "buy";
+  const walkingDirection = "buy";
+  const readinessMeterScore = result.score;
+  const readinessMeterPosition = `${readinessMeterScore}%`;
+  const readinessMeterTransform = `translate(-${readinessMeterScore}%, -50%)`;
   const selectedLender = getContactById(lenders, selectedLenderId);
   const selectedRealtor = getContactById(realtors, selectedRealtorId);
   const filteredLocations = useMemo(() => {
@@ -2668,7 +2480,7 @@ function App() {
     : showSummary
       ? "Complete"
       : showExplanation
-        ? (step === questions.length - 1 ? "See summary" : "Next question")
+        ? (returnToSummary ? "Return to summary" : step === questions.length - 1 ? "See summary" : "Next question")
         : isAssistanceChoicePage
           ? (assistanceSelectionMode === "none" ? "See impact" : "Choose specific program")
           : currentQuestion.key === "location"
@@ -2716,11 +2528,13 @@ function App() {
     const stepName = getStepName(step, showIntro, showExplanation, showSummary, contactPicker);
     const url = new URL(window.location.href);
     url.searchParams.set("step", stepName);
+    if (returnToSummary && !showIntro && !showSummary && !contactPicker) url.searchParams.set("returnTo", "summary");
+    else url.searchParams.delete("returnTo");
 
     if (url.href !== window.location.href) {
       window.history.replaceState(null, "", url);
     }
-  }, [step, showIntro, showExplanation, showSummary, contactPicker]);
+  }, [step, showIntro, showExplanation, showSummary, contactPicker, returnToSummary]);
 
   useEffect(() => {
     function handlePopState() {
@@ -2730,6 +2544,7 @@ function App() {
       setShowExplanation(route.showExplanation);
       setShowSummary(route.showSummary);
       setContactPicker(route.contactPicker);
+      setReturnToSummary(route.returnToSummary);
     }
 
     window.addEventListener("popstate", handlePopState);
@@ -2761,9 +2576,20 @@ function App() {
     setEligibility((current) => ({ ...current, [key]: value }));
   }
 
-  function selectLocation(location: string) {
+  function selectLocation(location: string, index?: number) {
     setAnswers((current) => {
       const selectedLocations = normalizeLocations(current.location);
+      if (typeof index === "number") {
+        const nextLocations = [...selectedLocations];
+
+        nextLocations[index] = location;
+
+        return {
+          ...current,
+          location: Array.from(new Set(nextLocations.filter(Boolean))),
+        };
+      }
+
       const locationAlreadySelected = selectedLocations.includes(location);
 
       return {
@@ -2810,6 +2636,7 @@ function App() {
     setShowExplanation(false);
     setShowSummary(false);
     setContactPicker(null);
+    setReturnToSummary(false);
     setAssistanceSelectionMode("choose");
     setShowAssistanceProgramPicker(false);
     setSelectedLenderId(null);
@@ -2828,6 +2655,68 @@ function App() {
     setShowExplanation(true);
     setStep(questions.length - 1);
     setContactPicker(type);
+    setReturnToSummary(false);
+  }
+
+  function updateSummaryStep(questionKey: QuestionKey) {
+    const questionIndex = questions.findIndex((question) => question.key === questionKey);
+    if (questionIndex === -1) return;
+
+    setShowIntro(false);
+    setShowSummary(false);
+    setShowExplanation(false);
+    setContactPicker(null);
+    setReturnToSummary(true);
+    setStep(questionIndex);
+    setShowAssistanceProgramPicker(false);
+  }
+
+  function goToProgressPage(pageNumber: number) {
+    setContactPicker(null);
+    setReturnToSummary(false);
+    setShowAssistanceProgramPicker(false);
+
+    if (pageNumber <= 1) {
+      setStep(0);
+      setShowIntro(true);
+      setShowExplanation(false);
+      setShowSummary(false);
+      return;
+    }
+
+    if (pageNumber >= totalPages) {
+      setStep(questions.length - 1);
+      setShowIntro(false);
+      setShowExplanation(true);
+      setShowSummary(true);
+      return;
+    }
+
+    if (pageNumber === 2) {
+      setStep(0);
+      setShowIntro(false);
+      setShowExplanation(false);
+      setShowSummary(false);
+      return;
+    }
+
+    const targetStep = Math.max(1, Math.min(questions.length - 1, Math.floor((pageNumber - 1) / 2)));
+
+    setStep(targetStep);
+    setShowIntro(false);
+    setShowExplanation(pageNumber % 2 === 0);
+    setShowSummary(false);
+  }
+
+  function getProgressPageLabel(pageNumber: number) {
+    if (pageNumber === 1) return "Go to welcome page";
+    if (pageNumber === totalPages) return "Go to summary page";
+    if (pageNumber === 2) return `Go to ${questions[0].title}`;
+
+    const targetStep = Math.max(1, Math.min(questions.length - 1, Math.floor((pageNumber - 1) / 2)));
+    const questionTitle = questions[targetStep].title;
+
+    return pageNumber % 2 === 0 ? `Go to ${questionTitle} impact` : `Go to ${questionTitle}`;
   }
 
   function selectContact(contactId: string) {
@@ -2835,10 +2724,13 @@ function App() {
     if (contactPicker === "realtor") setSelectedRealtorId(contactId);
     setContactPicker(null);
     setShowSummary(true);
+    setReturnToSummary(false);
   }
 
   function goBack() {
     if (showIntro) return;
+
+    setReturnToSummary(false);
 
     if (contactPicker) {
       setContactPicker(null);
@@ -2875,6 +2767,7 @@ function App() {
   function goNext() {
     if (showIntro) {
       setShowIntro(false);
+      setReturnToSummary(false);
       return;
     }
 
@@ -2909,8 +2802,16 @@ function App() {
       return;
     }
 
+    if (returnToSummary) {
+      setShowSummary(true);
+      setStep(questions.length - 1);
+      setReturnToSummary(false);
+      return;
+    }
+
     if (step === questions.length - 1) {
       setShowSummary(true);
+      setReturnToSummary(false);
       return;
     }
 
@@ -2922,19 +2823,19 @@ function App() {
 
   return (
     <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(20,184,166,0.18),_transparent_34%),linear-gradient(135deg,_#fbf7ef_0%,_#f1eadc_46%,_#dbeeea_100%)] px-4 py-4 sm:px-5 lg:px-6">
-      <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-3xl flex-col justify-center gap-4">
-        <section>
-          <Card className="border-primary/10 bg-white/75 shadow-glow backdrop-blur">
-            <CardContent className="p-4">
+      <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-3xl flex-col justify-center gap-4 pt-28">
+        <section className="fixed inset-x-0 top-0 z-50">
+          <Card className="w-full rounded-none border-x-0 border-t-0 border-primary/10 bg-white/85 shadow-glow backdrop-blur">
+            <CardContent className="p-4 sm:px-6 lg:px-8">
               <div className="space-y-2">
                 <div className="flex justify-between text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                  <span>Should rent</span>
-                  <span>Should buy</span>
+                  <span>Getting ready</span>
+                  <span>Ready to buy</span>
                 </div>
-                <div className="relative h-8 rounded-full bg-gradient-to-r from-accent via-secondary to-primary shadow-inner">
+                <div className="relative h-8 rounded-full bg-gradient-to-r from-primary/25 via-primary/60 to-primary shadow-inner">
                     <div
-                      className="absolute top-1/2 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center overflow-visible rounded-full border-2 border-white bg-white shadow-lg"
-                      style={{ left: `${result.score}%` }}
+                      className="absolute top-1/2 flex h-7 w-7 items-center justify-center overflow-visible rounded-full border-2 border-white bg-white shadow-lg"
+                      style={{ left: readinessMeterPosition, transform: readinessMeterTransform }}
                     >
                       <WalkingPersonSvg direction={walkingDirection} />
                     </div>
@@ -2945,10 +2846,22 @@ function App() {
         </section>
 
         <Card className="border-white/70 bg-white/85 shadow-2xl backdrop-blur">
-          <CardHeader className="gap-1.5 p-5 pb-4">
+            <CardHeader className="gap-1.5 p-5 pb-4">
+            <div className="flex gap-2">
+              {Array.from({ length: totalPages }).map((_, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => goToProgressPage(index + 1)}
+                  className={`h-2 flex-1 rounded-full transition hover:scale-y-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${index < pageIndex ? "bg-primary" : "bg-muted"}`}
+                  aria-label={getProgressPageLabel(index + 1)}
+                  aria-current={index + 1 === pageIndex ? "step" : undefined}
+                />
+              ))}
+            </div>
             <div className="flex items-center justify-between gap-4">
               <span className="rounded-full bg-secondary px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-secondary-foreground">
-                {showIntro ? "Welcome" : contactPicker ? `Select ${contactPicker}` : showSummary ? "Summary" : currentQuestion.eyebrow}
+                {showIntro ? "Welcome" : contactPicker ? `${contactPicker}s` : showSummary ? "Summary" : currentQuestion.eyebrow}
               </span>
               <span className="text-sm font-semibold text-muted-foreground">
                 {pageIndex} / {totalPages}
@@ -2957,349 +2870,92 @@ function App() {
             {!showIntro ? (
               <>
                 <CardTitle className="text-2xl leading-tight sm:text-3xl">
-                  {contactPicker ? `Choose a ${contactPicker}` : showSummary ? "Summary and next steps" : showExplanation ? "How that answer changed your result" : showAssistanceProgramPicker ? "Choose a specific program" : currentQuestion.title}
+                  {contactPicker ? `${contactPicker === "lender" ? "Lender" : "Realtor"} options to contact` : showSummary ? "Summary and next steps" : showExplanation ? "How that answer changed your result" : showAssistanceProgramPicker ? "Choose a specific program" : currentQuestion.title}
                 </CardTitle>
                 <CardDescription className="text-sm leading-6">
-                  {contactPicker ? "Select one contact to save it to your summary." : showSummary ? "Review your choices, then connect with a lender and realtor to verify the plan." : showExplanation ? "Review the impact of your last answer and a few resources to help you investigate further." : showAssistanceProgramPicker ? "Now pick the program you want to model for this path." : currentQuestion.description}
+                  {contactPicker ? "Use this list to compare contacts and decide who to follow up with." : showSummary ? "Review your choices, then connect with a lender and realtor to verify the plan." : showExplanation ? "Review the impact of your last answer and a few resources to help you investigate further." : showAssistanceProgramPicker ? "Now pick the program you want to model for this path." : currentQuestion.description}
                 </CardDescription>
               </>
             ) : null}
           </CardHeader>
           <CardContent className="space-y-5 p-5 pt-0">
             {showIntro ? (
-              <WhatThisIsPage />
+              <WhatThisIsPageView />
             ) : contactPicker ? (
-              <ContactPickerPage type={contactPicker} contacts={contactPicker === "lender" ? lenders : realtors} selectedContactId={contactPicker === "lender" ? selectedLenderId : selectedRealtorId} locations={selectedLocations} onSelect={selectContact} />
+              <ContactPickerPageView
+                type={contactPicker}
+                contacts={contactPicker === "lender" ? lenders : realtors}
+                selectedContactId={contactPicker === "lender" ? selectedLenderId : selectedRealtorId}
+                locations={selectedLocations}
+                getCountyNames={getCountyNames}
+                contactMatchesCounty={contactMatchesCounty}
+                sortContactsForLocations={sortContactsForLocations}
+                onSelect={selectContact}
+              />
             ) : showSummary ? (
-              <SummaryNextSteps answers={answers} result={result} selectedLender={selectedLender} selectedRealtor={selectedRealtor} onFindLender={() => openContactPicker("lender")} onFindRealtor={() => openContactPicker("realtor")} />
-            ) : showExplanation ? (
-              <div className="space-y-4">
-                <div className="rounded-3xl border border-primary/15 bg-primary/10 p-4">
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">{currentQuestion.eyebrow}</p>
-                  <p className="mt-2 text-lg font-black text-foreground">
-                    {currentQuestion.key === "income"
-                      ? `${formatCurrency(Number(answerValue))}, ${answers.householdSize} person household`
-                      : currentQuestion.key === "bedrooms"
-                        ? `${Number(answerValue)} bedroom${Number(answerValue) === 1 ? "" : "s"} in ${result.modeledLocation}`
-                        : currentQuestion.key === "assistanceProgram"
-                          ? result.selectedAffordablePrograms[0]?.name ?? getAssistanceProgram(String(answerValue)).title
-                          : currentQuestion.key === "creditScore"
-                            ? getCreditScoreOption(Number(answerValue)).range
-                            : getLocationsLabel(answers.location)}
-                  </p>
-                  <p className="mt-3 text-sm leading-6 text-muted-foreground">{explainImpact(currentQuestion, answers, result)}</p>
-                </div>
-
-                {currentQuestion.key === "creditScore" ? <CreditScoreExplanation answers={answers} result={result} /> : null}
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {resources.map((resource) => (
-                    <a
-                      key={resource.title}
-                      href={resource.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="group rounded-3xl border bg-white/75 p-4 transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <p className="flex items-start justify-between gap-3 font-black tracking-tight">
-                        <span>{resource.title}</span>
-                        <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition group-hover:text-primary" aria-hidden="true" />
-                      </p>
-                      <p className="mt-2 text-sm leading-6 text-muted-foreground">{resource.description}</p>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            ) : currentQuestion.type === "location" ? (
-              <div className="space-y-3">
-                <div
-                  className="relative space-y-2"
-                  onBlur={(event) => {
-                    if (!event.currentTarget.contains(event.relatedTarget)) {
-                      setIsLocationOpen(false);
-                    }
-                  }}
-                >
-                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Colorado location</span>
-                  <div className="relative">
-                    <Input
-                      role="combobox"
-                      aria-expanded={isLocationOpen}
-                      aria-activedescendant={isLocationOpen && filteredLocations[activeLocationIndex] ? `location-option-${activeLocationIndex}` : undefined}
-                      value={locationSearch}
-                      onChange={(event) => {
-                        setLocationSearch(event.target.value);
-                        setIsLocationOpen(true);
-                        setActiveLocationIndex(0);
-                      }}
-                      onKeyDown={handleLocationKeyDown}
-                      placeholder="Search and add places, e.g. Highland or Boulder"
-                      className="h-12 bg-white pr-10 text-base"
-                    />
-                    <button
-                      type="button"
-                      aria-label="Toggle location suggestions"
-                      onClick={() => setIsLocationOpen((current) => !current)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <ChevronsUpDown className="h-4 w-4" />
-                    </button>
-                  </div>
-
-                  {isLocationOpen ? (
-                    <div className="absolute z-20 mt-2 max-h-64 w-full overflow-auto rounded-md border bg-white p-1 shadow-xl" role="listbox">
-                      {filteredLocations.length ? (
-                        filteredLocations.map((locationOption, index) => {
-                          const isSelected = selectedLocations.includes(locationOption.name);
-                          const isActive = index === activeLocationIndex;
-
-                          return (
-                            <button
-                              key={locationOption.name}
-                              id={`location-option-${index}`}
-                              type="button"
-                              role="option"
-                              aria-selected={isActive}
-                              onMouseDown={(event) => event.preventDefault()}
-                              onMouseEnter={() => setActiveLocationIndex(index)}
-                              onClick={() => selectLocation(locationOption.name)}
-                              className={`flex w-full items-center justify-between gap-3 rounded-sm px-3 py-2 text-left text-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isActive ? "bg-muted" : ""}`}
-                            >
-                              <span>{locationOption.name}</span>
-                              {isSelected ? <Check className="h-4 w-4 text-primary" /> : null}
-                            </button>
-                          );
-                        })
-                      ) : (
-                        <p className="px-3 py-2 text-sm text-muted-foreground">No Colorado locations found.</p>
-                      )}
-                    </div>
-                  ) : null}
-                </div>
-                {selectedLocations.length ? (
-                  <div className="flex flex-wrap gap-2">
-                    {selectedLocations.map((location) => (
-                      <button
-                        key={location}
-                        type="button"
-                        onClick={() => selectLocation(location)}
-                        className={`rounded-full border px-3 py-1.5 text-xs font-bold transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                          "bg-white/80 text-muted-foreground"
-                        }`}
-                      >
-                        {location} ×
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-                <p className="text-sm leading-6 text-muted-foreground">
-                  Choose one or more Colorado neighborhoods, cities, or counties; neighborhood and city options include county names for context.
-                </p>
-              </div>
+              <SummaryNextStepsPage
+                answers={answers}
+                result={result}
+                selectedLender={selectedLender}
+                selectedRealtor={selectedRealtor}
+                lenderOptions={sortContactsForLocations(lenders, selectedLocations).slice(0, 2)}
+                realtorOptions={sortContactsForLocations(realtors, selectedLocations).slice(0, 2)}
+                getAssistanceProgram={getAssistanceProgram}
+                getLocationsLabel={getLocationsLabel}
+                getCreditScoreOption={getCreditScoreOption}
+                getCreditScoreMilestone={getCreditScoreMilestone}
+                formatCurrency={formatCurrency}
+                onUpdateStep={updateSummaryStep}
+                onFindLender={() => openContactPicker("lender")}
+                onFindRealtor={() => openContactPicker("realtor")}
+              />
             ) : (
-                  <div className="space-y-4">
-                {currentQuestion.key === "income" ? (
-                  <>
-                    <div className="relative">
-                      {currentQuestion.type === "currency" ? (
-                        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-base font-semibold text-muted-foreground">$</span>
-                      ) : null}
-                      <Input
-                        className={`${currentQuestion.type === "currency" ? "pl-8" : ""} text-center text-lg font-semibold`}
-                        type="number"
-                        min={currentQuestion.min}
-                        max={currentQuestion.max}
-                        step={currentQuestion.step}
-                        value={answerValue}
-                        onChange={(event) => updateAnswer(event.target.value === "" ? "" : Number(event.target.value))}
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Household size</p>
-                          <p className="mt-1 text-sm leading-6 text-muted-foreground">Include everyone who will live in the home; larger households add everyday cost pressure to the score.</p>
-                        </div>
-                      </div>
-                      <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-8">
-                        {householdSizeOptions.map((size) => {
-                          const isSelected = answers.householdSize === size;
-
-                          return (
-                            <button
-                              key={size}
-                              type="button"
-                              onClick={() => updateHouseholdSize(size)}
-                              className={`rounded-2xl border px-3 py-2 text-sm font-black transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                                isSelected ? "border-primary bg-primary/10 text-primary shadow-glow" : "bg-white/80 text-foreground"
-                              }`}
-                              aria-pressed={isSelected}
-                            >
-                              {size}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </>
-                ) : currentQuestion.key === "bedrooms" ? (
-                  <>
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                      {bedroomOptions.map((bedrooms) => {
-                        const estimate = estimateHousingForBedrooms(bedrooms, result.modeledLocation);
-                        const isSelected = Number(answerValue) === bedrooms;
-                        const label = bedrooms === 0 ? "Empty lot" : `${bedrooms} bed${bedrooms === 1 ? "" : "s"}`;
-
-                        return (
-                          <button
-                            key={bedrooms}
-                            type="button"
-                            onClick={() => updateAnswer(bedrooms)}
-                            className={`rounded-3xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                              isSelected ? "border-primary bg-primary/10 shadow-glow" : "bg-white/75"
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <p className="font-black tracking-tight">{label}</p>
-                                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                                  {bedrooms === 0 ? "land only" : `~${estimate.estimatedSquareFeet.toLocaleString()} sq ft`}
-                                </p>
-                              </div>
-                              <span className={`h-4 w-4 rounded-full border-2 ${isSelected ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
-                            </div>
-                            <div className="mt-2">
-                              <HouseSizeSvg bedrooms={bedrooms} squareFeet={estimate.estimatedSquareFeet} compact />
-                            </div>
-                            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                              <div className="rounded-2xl bg-white/80 p-2.5">
-                                <p className="text-muted-foreground">Rent</p>
-                                <p className="mt-1 font-bold">{bedrooms === 0 ? "N/A" : formatCurrency(estimate.monthlyRent)}</p>
-                              </div>
-                              <div className="rounded-2xl bg-white/80 p-2.5">
-                                <p className="text-muted-foreground">Mortgage</p>
-                                <p className="mt-1 font-bold">{formatCurrency(estimate.monthlyMortgage)}</p>
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {selectedLocations.length > 1 ? (
-                      <div className="rounded-3xl border border-amber-300/70 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-                        <div className="flex gap-3">
-                          <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
-                          <div className="space-y-3">
-                            <p>
-                              For the house-cost estimate, click a place below to model the bedroom cards above with that market: <span className="font-bold">{result.modeledLocation}</span>. Down payment assistance includes programs for any selected county.
-                            </p>
-                            <div className="grid gap-2 sm:grid-cols-2">
-                              {[...selectedLocations]
-                                .sort((first, second) => getLocationMultiplier(first) - getLocationMultiplier(second))
-                                .map((location) => {
-                                  const estimate = estimateHousingForBedrooms(Number(answerValue), location);
-                                  const isModeled = location === result.modeledLocation;
-
-                                  return (
-                                    <button
-                                      key={location}
-                                      type="button"
-                                      onClick={() => setModeledLocationOverride(location)}
-                                      className={`rounded-2xl border bg-white/80 p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isModeled ? "border-amber-400" : "border-amber-200"}`}
-                                      aria-label={`Model bedroom costs with ${location}`}
-                                    >
-                                      <div className="flex items-start justify-between gap-2">
-                                        <p className="font-black tracking-tight text-foreground">{location}</p>
-                                        {isModeled ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[0.65rem] font-black uppercase tracking-[0.14em] text-amber-700">Modeled</span> : null}
-                                      </div>
-                                      <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                                        <div>
-                                          <p>Estimated price</p>
-                                          <p className="mt-1 font-bold text-foreground">{formatCurrency(estimate.estimatedPrice)}</p>
-                                        </div>
-                                        <div>
-                                          <p>Mortgage</p>
-                                          <p className="mt-1 font-bold text-foreground">{formatCurrency(estimate.monthlyMortgage)}/mo</p>
-                                        </div>
-                                      </div>
-                                    </button>
-                                  );
-                                })}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ) : null}
-                  </>
-                ) : currentQuestion.key === "assistanceProgram" ? (
-                  !showAssistanceProgramPicker ? (
-                    <AssistancePathChoice
-                      selectedPath={assistanceSelectionMode === "choose" ? null : assistanceSelectionMode}
-                      onChoosePath={(path) => {
-                        setAssistanceSelectionMode(path);
-                        if (path === "dpa") setAnswers((current) => ({ ...current, affordablePrograms: [] }));
-                        if (path === "affordable") setAnswers((current) => ({ ...current, assistanceProgram: "none" }));
-                      }}
-                      onChooseNone={() => {
-                        setAssistanceSelectionMode("none");
-                        setAnswers((current) => ({ ...current, assistanceProgram: "none", affordablePrograms: [] }));
-                      }}
-                    />
-                  ) : (
-                    <DownPaymentAssistanceList
-                      result={result}
-                      locations={answers.location}
-                      selectedProgramId={answers.affordablePrograms.length ? "" : String(answerValue)}
-                      selectedAffordableProgramIds={answers.affordablePrograms}
-                      eligibility={eligibility}
-                      mode={assistanceSelectionMode === "affordable" ? "affordable" : "dpa"}
-                      onEligibilityChange={updateEligibility}
-                      onSelect={(programId) => {
-                        updateAnswer(programId);
-                        setAnswers((current) => ({ ...current, affordablePrograms: [] }));
-                      }}
-                      onAffordableProgramToggle={toggleAffordableProgram}
-                      onChangePath={() => setShowAssistanceProgramPicker(false)}
-                    />
-                  )
-                ) : (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {creditScoreOptions.map((option) => {
-                      const numericAnswer = Number(answerValue);
-                      const isSelected = numericAnswer >= option.min && numericAnswer <= option.max;
-
-                      return (
-                        <button
-                          key={option.label}
-                          type="button"
-                          onClick={() => updateAnswer(option.value)}
-                          className={`rounded-3xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                            isSelected ? "border-primary bg-primary/10 shadow-glow" : "bg-white/75"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="font-black tracking-tight">{option.label}</p>
-                              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                                {option.range}
-                              </p>
-                            </div>
-                            <span className={`h-4 w-4 rounded-full border-2 ${isSelected ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              <QuestionFlowPage
+                showExplanation={showExplanation}
+                currentQuestion={currentQuestion}
+                answerValue={answerValue}
+                answers={answers}
+                result={result}
+                resources={resources}
+                selectedLocations={selectedLocations}
+                filteredLocations={filteredLocations}
+                activeLocationIndex={activeLocationIndex}
+                isLocationOpen={isLocationOpen}
+                locationSearch={locationSearch}
+                showAssistanceProgramPicker={showAssistanceProgramPicker}
+                assistanceSelectionMode={assistanceSelectionMode}
+                eligibility={eligibility}
+                householdSizeOptions={householdSizeOptions}
+                bedroomOptions={bedroomOptions}
+                creditScoreOptions={creditScoreOptions}
+                formatCurrency={formatCurrency}
+                formatPercent={formatPercent}
+                explainImpact={explainImpact}
+                getAssistanceProgram={getAssistanceProgram}
+                getCreditScoreOption={getCreditScoreOption}
+                estimateHousingForBedrooms={estimateHousingForBedrooms}
+                getLocationMultiplier={getLocationMultiplier}
+                setLocationSearch={setLocationSearch}
+                setIsLocationOpen={setIsLocationOpen}
+                setActiveLocationIndex={setActiveLocationIndex}
+                setModeledLocationOverride={setModeledLocationOverride}
+                setAssistanceSelectionMode={setAssistanceSelectionMode}
+                setShowAssistanceProgramPicker={setShowAssistanceProgramPicker}
+                setAnswers={setAnswers}
+                updateAnswer={updateAnswer}
+                updateHouseholdSize={updateHouseholdSize}
+                updateEligibility={updateEligibility}
+                selectLocation={selectLocation}
+                handleLocationKeyDown={handleLocationKeyDown}
+                toggleAffordableProgram={toggleAffordableProgram}
+                HouseSizeSvg={HouseSizeSvg}
+                AssistancePathChoice={AssistancePathChoice}
+                DownPaymentAssistanceList={DownPaymentAssistanceList}
+                CreditScoreExplanation={CreditScoreExplanation}
+                getLocationsLabel={getLocationsLabel}
+              />
             )}
 
-            <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
-              {Array.from({ length: totalPages }).map((_, index) => (
-                <div key={index} className={`h-2 rounded-full ${index < pageIndex ? "bg-primary" : "bg-muted"}`} />
-              ))}
-            </div>
           </CardContent>
           <CardFooter className="flex flex-wrap justify-between gap-3 p-5 pt-0">
             <Button variant="ghost" onClick={reset}>
