@@ -2593,7 +2593,7 @@ function App() {
   const baselineReadinessMeterScore = baselineResult.score;
   const readinessMeterPosition = `${readinessMeterScore}%`;
   const readinessMeterTransform = `translate(-${readinessMeterScore}%, -50%)`;
-  const showReadinessTrail = !showIntro && !showSummary && !contactPicker;
+  const showReadinessTrail = !showIntro && !showSummary && !contactPicker && currentQuestion.key !== "bedrooms";
   const readinessTrailStart = `${Math.min(baselineReadinessMeterScore, readinessMeterScore)}%`;
   const readinessTrailWidth = `${Math.abs(readinessMeterScore - baselineReadinessMeterScore)}%`;
   const selectedLender = getContactById(lenders, selectedLenderId);
