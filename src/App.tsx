@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, ExternalLink, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,6 +59,9 @@ type AssistanceProgram = {
   assistanceRate: number;
   assistanceCap?: number;
   assistanceFixed?: number;
+  minimumContribution?: number;
+  minimumContributionRate?: number;
+  minimumContributionAssistanceRate?: number;
   bestFor: string;
   description: string;
 };
@@ -241,6 +244,7 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     assistance: "Up to 3% - 4%",
     assistanceRate: 0.04,
     assistanceCap: 25000,
+    minimumContribution: 1000,
     bestFor: "Statewide first-time buyers",
     description: "CHFA first mortgage plus optional 0% DPA second. First-time buyer required, 620 minimum credit score, $1,000 minimum contribution, gifts allowed.",
   },
@@ -250,6 +254,7 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     assistance: "Up to 4% second or 3% grant",
     assistanceRate: 0.04,
     assistanceCap: 25000,
+    minimumContribution: 1000,
     bestFor: "Statewide buyers, not first-time only",
     description: "CHFA first mortgage paired with a DPA second or grant. 620 minimum credit score, $1,000 minimum contribution, gifts allowed, $174,440 statewide income limit.",
   },
@@ -259,6 +264,7 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     assistance: "$25,000",
     assistanceRate: 0,
     assistanceFixed: 25000,
+    minimumContribution: 1000,
     bestFor: "Statewide first-generation buyers",
     description: "CHFA first mortgage plus $25K DPA second. Requires first-time and first-generation eligibility for at least one borrower, 620 minimum credit, and $1,000 contribution.",
   },
@@ -268,6 +274,7 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     assistance: "$25,000",
     assistanceRate: 0,
     assistanceFixed: 25000,
+    minimumContribution: 500,
     bestFor: "Statewide buyers with disability eligibility",
     description: "CHFA grant or second mortgage for borrowers with a permanent disability or custodial parents of a child with a disability. 620 credit score and $500 contribution.",
   },
@@ -295,6 +302,7 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     assistance: "$10,000",
     assistanceRate: 0,
     assistanceFixed: 10000,
+    minimumContribution: 750,
     bestFor: "Statewide buyers with disability documentation",
     description: "CHAC second mortgage with a lower $750 minimum contribution. First-time buyer required and gift funds are not allowed for the minimum contribution.",
   },
@@ -363,6 +371,8 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     assistance: "Up to 10%, max $50K",
     assistanceRate: 0.1,
     assistanceCap: 50000,
+    minimumContribution: 1000,
+    minimumContributionRate: 0.01,
     bestFor: "Selected Colorado communities",
     description: "Impact Development Fund DPA loan. First-time buyer required, 120% AMI limit, minimum contribution is greater of $1,000 or 1% of purchase price.",
   },
@@ -397,6 +407,7 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     assistance: "Up to 5%, max $42.5K",
     assistanceRate: 0.05,
     assistanceCap: 42500,
+    minimumContributionAssistanceRate: 0.5,
     bestFor: "Eagle County FHA buyers",
     description: "2.5% simple-interest amortized second mortgage with monthly payments. FHA first mortgage only and borrower must contribute at least 50% of loan amount.",
   },
@@ -423,6 +434,7 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     assistance: "Up to 4% second or 3% grant",
     assistanceRate: 0.04,
     assistanceCap: 25000,
+    minimumContribution: 750,
     bestFor: "Statewide buyers using Section 8 homeownership voucher",
     description: "CHFA DPA grant or second mortgage. First-time buyer required with veteran exceptions, lower $500/$750 contribution, 620 or program minimum credit score.",
   },
@@ -440,6 +452,7 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     assistance: "Up to 4%, max $25K",
     assistanceRate: 0.04,
     assistanceCap: 25000,
+    minimumContribution: 1000,
     bestFor: "Statewide buyers, broad loan types",
     description: "CHFA zero-percent silent second with no monthly payments. Not limited to first-time buyers, $174,440 statewide income limit, $1,000 contribution.",
   },
@@ -457,6 +470,7 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     assistance: "Up to 4%, max $25K",
     assistanceRate: 0.04,
     assistanceCap: 25000,
+    minimumContribution: 1000,
     bestFor: "Statewide very-low-income conventional buyers",
     description: "CHFA zero-percent silent second for Freddie Mac conventional loans. Not first-time-only, 620 or Freddie Mac minimum credit score, $1,000 contribution.",
   },
@@ -465,6 +479,7 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     title: "Douglas County Housing Partnership DPA",
     assistance: "Confirm with DCHP",
     assistanceRate: 0.035,
+    minimumContributionRate: 0.01,
     bestFor: "Douglas County first-time buyers",
     description: "Low-interest second mortgage for Douglas County buyers, with preference for residents or workers. 80% AMI limit and 1% minimum contribution.",
   },
@@ -474,6 +489,7 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     assistance: "Up to 15%, max $97.5K",
     assistanceRate: 0.15,
     assistanceCap: 97500,
+    minimumContributionRate: 0.05,
     bestFor: "Larimer and Weld County buyers",
     description: "Silent shared-equity second mortgage. Not first-time-only but borrower cannot own other property, 120% AMI limit, 5% own-funds contribution required.",
   },
@@ -483,6 +499,7 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     assistance: "Up to 3.5%, max $15K",
     assistanceRate: 0.035,
     assistanceCap: 15000,
+    minimumContribution: 3000,
     bestFor: "Park R3 School District workforce buyers",
     description: "Low-interest amortizing second mortgage. First-time buyer required, 81% to 150% AMI, $3,000 own-funds contribution, local employment required.",
   },
@@ -501,6 +518,7 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     assistance: "Up to $40K",
     assistanceRate: 0,
     assistanceFixed: 40000,
+    minimumContributionRate: 0.02,
     bestFor: "Summit County workforce buyers",
     description: "2% amortizing second mortgage. 620 credit score, 50% to 160% AMI, 2% own-funds contribution, local employment required.",
   },
@@ -519,6 +537,8 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     assistance: "10%, max $20K",
     assistanceRate: 0.1,
     assistanceCap: 20000,
+    minimumContribution: 1000,
+    minimumContributionRate: 0.01,
     bestFor: "Routt County workforce buyers",
     description: "Deferred loan originated by IDF. Not first-time-only, 150% AMI limit, minimum contribution greater of $1,000 or 1%, local work requirement.",
   },
@@ -1292,6 +1312,16 @@ function hasAnswerValue(answers: Answers, key: QuestionKey) {
   return value !== "";
 }
 
+function getAnswersWithoutQuestionAnswer(answers: Answers, key: QuestionKey): Answers {
+  const baselineAnswers = { ...answers, [key]: initialAnswers[key] };
+
+  if (key === "income") baselineAnswers.householdSize = initialAnswers.householdSize;
+  if (key === "assistanceProgram") baselineAnswers.affordablePrograms = initialAnswers.affordablePrograms;
+  if (key === "affordablePrograms") baselineAnswers.assistanceProgram = initialAnswers.assistanceProgram;
+
+  return baselineAnswers;
+}
+
 function getCheapestLocation(locations: string[]) {
   return [...normalizeLocations(locations)].sort((first, second) => getLocationMultiplier(first) - getLocationMultiplier(second))[0] ?? "";
 }
@@ -1428,6 +1458,22 @@ function estimateAssistanceAmount(program: AssistanceProgram, homePrice: number)
   return program.assistanceCap ? Math.min(grossAssistance, program.assistanceCap) : grossAssistance;
 }
 
+function estimateMinimumBorrowerContribution(program: AssistanceProgram, homePrice: number, estimatedAssistance = estimateAssistanceAmount(program, homePrice)) {
+  const fixedContribution = program.minimumContribution ?? 0;
+  const priceBasedContribution = homePrice * (program.minimumContributionRate ?? 0);
+  const assistanceBasedContribution = estimatedAssistance * (program.minimumContributionAssistanceRate ?? 0);
+
+  return Math.max(fixedContribution, priceBasedContribution, assistanceBasedContribution);
+}
+
+function estimateApplicableAssistance(program: AssistanceProgram, homePrice: number, targetDownPayment: number) {
+  const estimatedAssistance = estimateAssistanceAmount(program, homePrice);
+  const minimumBorrowerContribution = estimateMinimumBorrowerContribution(program, homePrice, estimatedAssistance);
+  const downPaymentEligibleForAssistance = Math.max(0, targetDownPayment - minimumBorrowerContribution);
+
+  return Math.min(targetDownPayment, downPaymentEligibleForAssistance, estimatedAssistance);
+}
+
 function getRepaymentProfile(program: AssistanceProgram) {
   const terms = `${program.title} ${program.assistance} ${program.bestFor} ${program.description} ${getProgramRequirements(program).join(" ")}`.toLowerCase();
 
@@ -1443,8 +1489,9 @@ function getRepaymentProfile(program: AssistanceProgram) {
 }
 
 function getAssistanceFit(program: AssistanceProgram, estimatedPrice: number, targetDownPayment: number) {
-  const estimatedAssistance = Math.min(targetDownPayment, estimateAssistanceAmount(program, estimatedPrice));
-  const estimatedCashNeeded = Math.max(0, targetDownPayment - estimatedAssistance);
+  const estimatedAssistance = estimateApplicableAssistance(program, estimatedPrice, targetDownPayment);
+  const minimumBorrowerContribution = estimateMinimumBorrowerContribution(program, estimatedPrice);
+  const estimatedCashNeeded = Math.max(minimumBorrowerContribution, targetDownPayment - estimatedAssistance);
   const coverageRate = targetDownPayment ? estimatedAssistance / targetDownPayment : 0;
   const repaymentProfile = getRepaymentProfile(program);
   const coverageScore = Math.min(100, coverageRate * 100);
@@ -1454,6 +1501,7 @@ function getAssistanceFit(program: AssistanceProgram, estimatedPrice: number, ta
   return {
     estimatedAssistance,
     estimatedCashNeeded,
+    minimumBorrowerContribution,
     coverageRate,
     repaymentProfile,
     score,
@@ -1540,7 +1588,20 @@ function getMortgageInterestRateForCredit(score: number) {
 }
 
 function estimateMonthlyMortgagePayment(estimatedPrice: number, downPayment: number, annualInterestRate = 0.0675) {
-  if (estimatedPrice <= 0) return 0;
+  const breakdown = estimateMonthlyMortgageBreakdown(estimatedPrice, downPayment, annualInterestRate);
+
+  return breakdown.total;
+}
+
+function estimateMonthlyMortgageBreakdown(estimatedPrice: number, downPayment: number, annualInterestRate = 0.0675) {
+  if (estimatedPrice <= 0) {
+    return {
+      principalAndInterest: 0,
+      taxesAndInsurance: 0,
+      mortgageInsurance: 0,
+      total: 0,
+    };
+  }
 
   const appliedDownPayment = Math.max(0, Math.min(estimatedPrice * 0.95, downPayment));
   const loanAmount = Math.max(0, estimatedPrice - appliedDownPayment);
@@ -1550,7 +1611,12 @@ function estimateMonthlyMortgagePayment(estimatedPrice: number, downPayment: num
   const taxesAndInsurance = (estimatedPrice * 0.0145) / 12;
   const mortgageInsurance = appliedDownPayment / estimatedPrice < 0.2 ? (loanAmount * 0.0065) / 12 : 0;
 
-  return Math.round(principalAndInterest + taxesAndInsurance + mortgageInsurance);
+  return {
+    principalAndInterest: Math.round(principalAndInterest),
+    taxesAndInsurance: Math.round(taxesAndInsurance),
+    mortgageInsurance: Math.round(mortgageInsurance),
+    total: Math.round(principalAndInterest + taxesAndInsurance + mortgageInsurance),
+  };
 }
 
 function calculateScore(answers: Answers, answeredKeys: QuestionKey[], modeledLocationPreference?: string | null) {
@@ -1560,6 +1626,7 @@ function calculateScore(answers: Answers, answeredKeys: QuestionKey[], modeledLo
   const housingEstimate = estimateHousingForBedrooms(answers.bedrooms, modeledLocation);
   const estimatedSquareFeet = housingEstimate.estimatedSquareFeet;
   const marketEstimatedPrice = housingEstimate.estimatedPrice;
+  const assistanceProgram = getAssistanceProgram(answers.assistanceProgram);
   const selectedAffordableProgramId = answers.affordablePrograms[0];
   const selectedAffordablePrograms = selectedAffordableProgramId ? affordableHomeownershipPrograms.filter((program) => program.id === selectedAffordableProgramId) : [];
   const affordablePriceReductionRate = selectedAffordablePrograms[0]?.priceReductionRate ?? 0;
@@ -1570,24 +1637,26 @@ function calculateScore(answers: Answers, answeredKeys: QuestionKey[], modeledLo
   const locationScore = Math.max(0, Math.min(100, 112 - locationMultiplier * 40));
   const bedroomScore = Math.max(0, Math.min(100, 106 - answers.bedrooms * 9));
   const creditScore = Math.max(0, Math.min(100, (answers.creditScore - 560) / 2.9));
-  const assistanceProgram = getAssistanceProgram(answers.assistanceProgram);
   const targetDownPayment = estimatedPrice * 0.035;
   const savings = Number(answers.savings) || 0;
-  const savingsDeductions = estimatedPrice * 0.025 + 3000;
-  const savingsTarget = targetDownPayment + savingsDeductions;
+  const savingsDeductions = estimatedPrice * 0.025;
+  const savingsTargetBeforeAssistance = targetDownPayment + savingsDeductions;
   const savingsAvailableForDownPayment = Math.max(0, savings - savingsDeductions);
-  const extraSavingsForDownPayment = Math.max(0, savings - savingsTarget);
-  const assistanceAmount = Math.min(targetDownPayment, estimateAssistanceAmount(assistanceProgram, estimatedPrice));
+  const extraSavingsForDownPayment = Math.max(0, savings - savingsTargetBeforeAssistance);
+  const assistanceAmount = estimateApplicableAssistance(assistanceProgram, estimatedPrice, targetDownPayment);
+  const cashDownPaymentTarget = Math.max(0, targetDownPayment - assistanceAmount);
+  const savingsTarget = cashDownPaymentTarget + savingsDeductions;
   const appliedDownPayment = Math.min(estimatedPrice * 0.95, targetDownPayment + assistanceAmount + extraSavingsForDownPayment);
   const mortgageInterestRate = getMortgageInterestRateForCredit(answers.creditScore);
-  const monthlyPayment = estimateMonthlyMortgagePayment(estimatedPrice, appliedDownPayment, mortgageInterestRate);
+  const monthlyPaymentBreakdown = estimateMonthlyMortgageBreakdown(estimatedPrice, appliedDownPayment, mortgageInterestRate);
+  const monthlyPayment = monthlyPaymentBreakdown.total;
   const annualHousingCost = monthlyPayment * 12;
   const affordableMonthlyPayment = (income / 12) * PAYMENT_TO_INCOME_TARGET;
   const housingRatio = annualHousingCost / Math.max(income, 1);
   const householdSizeAdjustment = Math.max(0, householdSize - 2) * 0.015;
   const affordabilityRatio = housingRatio + householdSizeAdjustment;
   const monthlyPaymentReadiness = Math.max(0, Math.min(100, (affordableMonthlyPayment / Math.max(monthlyPayment, 1)) * 100));
-  const downPaymentReadiness = Math.max(0, Math.min(100, ((savings + assistanceAmount) / Math.max(savingsTarget, 1)) * 100));
+  const downPaymentReadiness = savingsTarget <= 0 ? 100 : Math.max(0, Math.min(100, (savings / savingsTarget) * 100));
   const partialScores: Record<QuestionKey, number> = {
     location: locationScore,
     income: monthlyPaymentReadiness,
@@ -1612,20 +1681,23 @@ function calculateScore(answers: Answers, answeredKeys: QuestionKey[], modeledLo
     estimatedPrice,
     estimatedSquareFeet,
     monthlyPayment,
+    monthlyPaymentBreakdown,
     monthlyRent: housingEstimate.monthlyRent,
     housingRatio,
     affordabilityRatio,
     householdSizeAdjustment,
     targetDownPayment,
+    cashDownPaymentTarget,
     savings,
     savingsDeductions,
     savingsTarget,
+    savingsTargetBeforeAssistance,
     savingsAvailableForDownPayment,
     extraSavingsForDownPayment,
     mortgageInterestRate,
     paymentToIncomeTarget: PAYMENT_TO_INCOME_TARGET,
     assistanceAmount,
-    cashNeededAfterAssistance: Math.max(0, savingsTarget - savings - assistanceAmount),
+    cashNeededAfterAssistance: Math.max(0, savingsTarget - savings),
     selectedAffordablePrograms,
     affordablePriceReductionRate,
     affordablePriceReductionAmount,
@@ -1643,44 +1715,98 @@ function explainImpact(question: Question, answers: Answers, result: ReturnType<
     const locationPhrase = selectedLocations.length > 1 ? `${modeledLocation}, the selected estimate location` : modeledLocation || "Colorado";
 
     return multiplier > 1.25
-      ? `${locationPhrase} is modeled as a ${getMarketLabel(multiplier)}, so the higher purchase price may hurt your ability to buy a home unless income can support it.`
-      : `${locationPhrase} is modeled as a ${getMarketLabel(multiplier)}, which may help your ability to buy a home compared with the most expensive counties.`;
+      ? {
+          headline: "This area is likely more expensive",
+          explanation: `${locationPhrase} is modeled as a ${getMarketLabel(multiplier)}. That means homes may cost more here, so you may need more income, savings, or buying help to make the numbers work.`,
+        }
+      : {
+          headline: "This area may make buying more realistic",
+          explanation: `${locationPhrase} is modeled as a ${getMarketLabel(multiplier)}. That means the target price may be easier to manage than Colorado's most expensive markets.`,
+        };
   }
 
   if (question.key === "income") {
-    const householdPhrase = answers.householdSize > 2 ? ` The ${answers.householdSize}-person household adds everyday cost pressure to the affordability score.` : "";
+    const householdPhrase = answers.householdSize > 2 ? ` A ${answers.householdSize}-person household also means more everyday costs to leave room for.` : "";
 
-    if (result.affordabilityRatio > 0.36) return `At this income, the estimated housing cost is high relative to earnings, which may hurt your ability to buy a home.${householdPhrase}`;
-    if (result.affordabilityRatio < 0.27) return `This income appears to support the estimated payment comfortably, which may help your ability to buy a home.${householdPhrase}`;
-    return `The payment may be manageable, but the budget is not wide enough yet to make buying a home feel clearly affordable.${householdPhrase}`;
+    if (result.affordabilityRatio > 0.36) return {
+      headline: "The payment may be too high for this income",
+      explanation: `The estimated housing cost takes up a large share of monthly income. Buying may still be possible, but you may need a lower price, more income, assistance, or less monthly debt.${householdPhrase}`,
+    };
+    if (result.affordabilityRatio < 0.27) return {
+      headline: "This income gives the payment more room",
+      explanation: `The estimated payment looks easier to carry with this income. You would still want a lender to verify taxes, insurance, debts, and the loan option.${householdPhrase}`,
+    };
+    return {
+      headline: "The payment may be possible, but tight",
+      explanation: `The estimated payment is not clearly out of reach, but there may not be much cushion. A smaller home, a different area, or assistance could make it feel safer.${householdPhrase}`,
+    };
   }
 
   if (question.key === "savings") {
-    if (result.downPaymentReadiness >= 100) return "Your savings appear to cover the modeled down payment plus estimated extra costs for this home size.";
-    if (result.savings > 0) return `Your savings cover part of the modeled down payment and extra-cost target, leaving about ${formatCurrency(result.cashNeededAfterAssistance)}.`;
-    return "Without savings entered, the upfront down payment and extra-cost target remains the biggest readiness gap.";
+    if (result.downPaymentReadiness >= 100) return {
+      headline: "Your savings cover the estimated upfront target",
+      explanation: "Based on this estimate, you have enough for the modeled down payment plus extra buying costs. A lender can confirm the exact cash needed for a real home.",
+    };
+    if (result.savings > 0) return {
+      headline: "Your savings help, but there is still a gap",
+      explanation: `Your savings cover part of the modeled down payment and extra costs. The remaining estimated gap is about ${formatCurrency(result.cashNeededAfterAssistance)}.`,
+    };
+    return {
+      headline: "Upfront cash is the biggest gap",
+      explanation: "Without savings entered, the model assumes you still need money for the down payment, closing costs, and a small cushion after buying.",
+    };
   }
 
   if (question.key === "bedrooms") {
-    if (answers.bedrooms <= 0) return "An empty lot removes the modeled house size, so this prototype treats the purchase price as much lower than a finished home.";
-    return answers.bedrooms > 4
-      ? "A higher bedroom count implies a larger home, raising the estimated price and potentially hurting your ability to buy a home."
-      : "This bedroom count keeps the target home more contained, which may help your ability to buy a home.";
+    if (answers.bedrooms <= 0) return {
+      headline: "Land is different from a finished home",
+      explanation: "An empty lot is modeled with a much lower purchase price than a finished home. Building later would add separate costs that are not included here.",
+    };
+    if (answers.bedrooms <= 2) return {
+      headline: "A smaller 1-2 bedroom home can make buying easier",
+      explanation: `In ${result.modeledLocation}, a smaller home keeps the modeled price, monthly payment, and upfront cash target more contained.`,
+    };
+    if (answers.bedrooms <= 4) return {
+      headline: "A medium 3-4 bedroom home balances space and cost",
+      explanation: `In ${result.modeledLocation}, this size gives more room than a smaller home, but it also raises the estimated payment and cash target.`,
+    };
+    return {
+      headline: "More bedrooms usually means a bigger payment",
+      explanation: `In ${result.modeledLocation}, a larger home raises the estimated price, monthly payment, and down payment target. That can make buying harder unless your budget can support it.`,
+    };
   }
 
   if (question.key === "assistanceProgram") {
     const selectedAffordableProgram = result.selectedAffordablePrograms[0];
-    if (selectedAffordableProgram) return `${selectedAffordableProgram.name} lowers the modeled purchase price by about ${formatCurrency(result.affordablePriceReductionAmount)}, which reduces both the monthly payment estimate and the upfront cash target while inventory, income limits, and resale rules still need verification.`;
+    if (selectedAffordableProgram) return {
+      headline: "This program lowers the modeled home price",
+      explanation: `${selectedAffordableProgram.name} reduces the modeled purchase price by about ${formatCurrency(result.affordablePriceReductionAmount)}. That can lower both the monthly payment and upfront cash target, but inventory, income limits, and resale rules still need verification.`,
+    };
 
     const program = getAssistanceProgram(answers.assistanceProgram);
 
-    if (program.id === "none") return `No assistance leaves the estimated 3.5% down payment at ${formatCurrency(result.targetDownPayment)}, so the upfront cash hurdle stays higher.`;
-    return `${program.title} could reduce the modeled upfront savings gap by about ${formatCurrency(result.assistanceAmount)}, leaving ${formatCurrency(result.cashNeededAfterAssistance)}.`;
+    if (program.id === "none") return {
+      headline: "Without assistance, you need more cash upfront",
+      explanation: `No assistance leaves the estimated 3.5% down payment at ${formatCurrency(result.targetDownPayment)}. That means savings play a bigger role in whether the purchase is ready.`,
+    };
+    return {
+      headline: "Assistance can reduce the cash gap",
+      explanation: `${program.title} could reduce the modeled upfront savings gap by about ${formatCurrency(result.assistanceAmount)}, leaving about ${formatCurrency(result.cashNeededAfterAssistance)} to cover.`,
+    };
   }
 
-  if (answers.creditScore >= 740) return "A strong credit score should improve the rate estimate, making ownership more attractive.";
-  if (answers.creditScore < 660) return "This credit score likely means a higher interest rate, which may hurt your ability to buy a home until financing improves.";
-  return "This credit score is workable, but improving it could materially strengthen your ability to buy a home.";
+  if (answers.creditScore >= 740) return {
+    headline: "Your credit score can help your mortgage options",
+    explanation: "A stronger score usually helps you qualify for better rates. A lower rate can reduce the monthly payment and make the same home easier to afford.",
+  };
+  if (answers.creditScore < 660) return {
+    headline: "Credit may be raising the payment",
+    explanation: "This score may lead to a higher interest rate or fewer loan options. Improving it could lower the payment and make approval easier.",
+  };
+  return {
+    headline: "This credit score can work, but there is room to improve",
+    explanation: "You may have mortgage options at this score. Raising it before applying could improve your rate and strengthen your buying position.",
+  };
 }
 
 function getQuestionResources(question: Question, answers: Answers, result: ReturnType<typeof calculateScore>): Resource[] {
@@ -1706,7 +1832,7 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
     return [
       {
         title: "Payment-to-income target",
-        description: `This prototype estimates housing costs at ${Math.round(result.housingRatio * 100)}% of income, then scores affordability at ${Math.round(result.affordabilityRatio * 100)}% after household size; many buyers use 30% as a planning target with room up to 36% depending on the loan and budget.`,
+        description: `This guide estimates housing costs at ${Math.round(result.housingRatio * 100)}% of income, then scores affordability at ${Math.round(result.affordabilityRatio * 100)}% after household size; many buyers use 30% as a planning target with room up to 36% depending on the loan and budget.`,
         url: "https://www.consumerfinance.gov/owning-a-home/prepare/mortgage-affordability/",
       },
       {
@@ -2351,7 +2477,7 @@ function CreditScoreExplanation({ answers, result }: { answers: Answers; result:
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Credit score explainer</p>
         <h3 className="mt-1 text-xl font-black tracking-tight">Why this score matters</h3>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Lenders use credit score as one signal for mortgage eligibility and rate pricing. In this prototype, a higher score improves the buy side because it can lower borrowing costs and keep more down payment programs available.
+          Lenders use credit score as one signal for mortgage eligibility and rate pricing. A higher score strengthens the buy side because it can lower borrowing costs and keep more down payment programs available.
         </p>
       </div>
 
@@ -2443,15 +2569,33 @@ function App() {
   const answeredKeys = useMemo(() => questions.filter((question) => hasAnswerValue(answers, question.key)).map((question) => question.key), [answers]);
   const currentQuestion = questions[step];
   const result = useMemo(() => calculateScore(answers, answeredKeys, modeledLocationOverride), [answers, answeredKeys, modeledLocationOverride]);
+  const baselineAnswers = useMemo(() => getAnswersWithoutQuestionAnswer(answers, currentQuestion.key), [answers, currentQuestion.key]);
+  const baselineAnsweredKeys = useMemo(
+    () => currentQuestion.key === "bedrooms" ? answeredKeys : answeredKeys.filter((key) => key !== currentQuestion.key),
+    [answeredKeys, currentQuestion.key],
+  );
+  const baselineResult = useMemo(() => calculateScore(baselineAnswers, baselineAnsweredKeys, currentQuestion.key === "location" ? null : modeledLocationOverride), [baselineAnswers, baselineAnsweredKeys, currentQuestion.key, modeledLocationOverride]);
   const answerValue = answers[currentQuestion.key];
   const isLastPage = showSummary;
-  const totalPages = questions.length * 2 + 1;
-  const pageIndex = showIntro ? 1 : showSummary ? totalPages : step === 0 ? 2 : step * 2 + (showExplanation ? 2 : 1);
+  const totalPages = questions.length * 2 + 2;
+  const pageIndex = showIntro
+    ? 1
+    : showSummary
+      ? totalPages
+      : currentQuestion.key === "assistanceProgram"
+        ? (showExplanation ? totalPages - 1 : showAssistanceProgramPicker ? totalPages - 2 : totalPages - 3)
+        : step === 0
+          ? 2
+          : step * 2 + (showExplanation ? 2 : 1);
   const resources = getQuestionResources(currentQuestion, answers, result);
   const walkingDirection = "buy";
   const readinessMeterScore = result.score;
+  const baselineReadinessMeterScore = baselineResult.score;
   const readinessMeterPosition = `${readinessMeterScore}%`;
   const readinessMeterTransform = `translate(-${readinessMeterScore}%, -50%)`;
+  const showReadinessTrail = !showIntro && !showSummary && !contactPicker;
+  const readinessTrailStart = `${Math.min(baselineReadinessMeterScore, readinessMeterScore)}%`;
+  const readinessTrailWidth = `${Math.abs(readinessMeterScore - baselineReadinessMeterScore)}%`;
   const selectedLender = getContactById(lenders, selectedLenderId);
   const selectedRealtor = getContactById(realtors, selectedRealtorId);
   const filteredLocations = useMemo(() => {
@@ -2495,6 +2639,20 @@ function App() {
 
     setActiveLocationIndex((current) => Math.min(current, filteredLocations.length - 1));
   }, [filteredLocations.length, isLocationOpen]);
+
+  useLayoutEffect(() => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+
+    const scrollToTop = () => {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      document.scrollingElement?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    };
+
+    scrollToTop();
+    const animationFrame = window.requestAnimationFrame(scrollToTop);
+
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [pageIndex, showAssistanceProgramPicker, contactPicker]);
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(answers));
@@ -2700,6 +2858,15 @@ function App() {
       return;
     }
 
+    if (pageNumber >= totalPages - 3) {
+      setStep(questions.length - 1);
+      setShowIntro(false);
+      setShowExplanation(pageNumber === totalPages - 1);
+      setShowSummary(false);
+      setShowAssistanceProgramPicker(pageNumber === totalPages - 2);
+      return;
+    }
+
     const targetStep = Math.max(1, Math.min(questions.length - 1, Math.floor((pageNumber - 1) / 2)));
 
     setStep(targetStep);
@@ -2712,6 +2879,10 @@ function App() {
     if (pageNumber === 1) return "Go to welcome page";
     if (pageNumber === totalPages) return "Go to summary page";
     if (pageNumber === 2) return `Go to ${questions[0].title}`;
+
+    if (pageNumber === totalPages - 3) return "Go to buying help path choice";
+    if (pageNumber === totalPages - 2) return "Go to specific program choice";
+    if (pageNumber === totalPages - 1) return "Go to buying help impact";
 
     const targetStep = Math.max(1, Math.min(questions.length - 1, Math.floor((pageNumber - 1) / 2)));
     const questionTitle = questions[targetStep].title;
@@ -2829,16 +3000,21 @@ function App() {
             <CardContent className="p-4 sm:px-6 lg:px-8">
               <div className="space-y-2">
                 <div className="flex justify-between text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                  <span>Getting ready</span>
+                  <span>Getting ready to buy</span>
                   <span>Ready to buy</span>
                 </div>
                 <div className="relative h-8 rounded-full bg-gradient-to-r from-primary/25 via-primary/60 to-primary shadow-inner">
+                  <div className="absolute left-3 right-3 top-1/2 h-1 -translate-y-1/2" aria-hidden="true">
+                    {showReadinessTrail ? <div className="absolute h-full rounded-full bg-white" style={{ left: readinessTrailStart, width: readinessTrailWidth }} /> : null}
+                  </div>
+                  <div className="absolute inset-0.5">
                     <div
                       className="absolute top-1/2 flex h-7 w-7 items-center justify-center overflow-visible rounded-full border-2 border-white bg-white shadow-lg"
                       style={{ left: readinessMeterPosition, transform: readinessMeterTransform }}
                     >
                       <WalkingPersonSvg direction={walkingDirection} />
                     </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -2859,21 +3035,23 @@ function App() {
                 />
               ))}
             </div>
-            <div className="flex items-center justify-between gap-4">
-              <span className="rounded-full bg-secondary px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-secondary-foreground">
-                {showIntro ? "Welcome" : contactPicker ? `${contactPicker}s` : showSummary ? "Summary" : currentQuestion.eyebrow}
-              </span>
+            <div className={`flex items-center gap-4 ${showExplanation ? "justify-end" : "justify-between"}`}>
+              {!showExplanation ? (
+                <span className="rounded-full bg-secondary px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-secondary-foreground">
+                  {showIntro ? "Welcome" : contactPicker ? `${contactPicker}s` : showSummary ? "Summary" : currentQuestion.eyebrow}
+                </span>
+              ) : null}
               <span className="text-sm font-semibold text-muted-foreground">
                 {pageIndex} / {totalPages}
               </span>
             </div>
-            {!showIntro ? (
+            {!showIntro && !showExplanation ? (
               <>
                 <CardTitle className="text-2xl leading-tight sm:text-3xl">
-                  {contactPicker ? `${contactPicker === "lender" ? "Lender" : "Realtor"} options to contact` : showSummary ? "Summary and next steps" : showExplanation ? "How that answer changed your result" : showAssistanceProgramPicker ? "Choose a specific program" : currentQuestion.title}
+                  {contactPicker ? `${contactPicker === "lender" ? "Lender" : "Realtor"} options to contact` : showSummary ? "Summary and next steps" : showExplanation ? "What that means" : showAssistanceProgramPicker ? "Choose a specific program" : currentQuestion.title}
                 </CardTitle>
                 <CardDescription className="text-sm leading-6">
-                  {contactPicker ? "Use this list to compare contacts and decide who to follow up with." : showSummary ? "Review your choices, then connect with a lender and realtor to verify the plan." : showExplanation ? "Review the impact of your last answer and a few resources to help you investigate further." : showAssistanceProgramPicker ? "Now pick the program you want to model for this path." : currentQuestion.description}
+                  {contactPicker ? "Use this list to compare contacts and decide who to follow up with." : showSummary ? "Review your choices, then connect with a lender and realtor to verify the plan." : showExplanation ? "Here is the simple takeaway from your last answer, plus a few resources to explore next." : showAssistanceProgramPicker ? "Now pick the program you want to model for this path." : currentQuestion.description}
                 </CardDescription>
               </>
             ) : null}

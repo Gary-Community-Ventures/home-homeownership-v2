@@ -111,8 +111,9 @@ export function SummaryNextStepsPage({
   const paymentToIncomeTarget = result.paymentToIncomeTarget ?? 0.3;
   const paymentToIncomeTargetPercent = Math.round(paymentToIncomeTarget * 100);
   const incomeAvailableForPayment = (Number(answers.income) / 12) * paymentToIncomeTarget;
-  const downPaymentCovered = Math.min(result.savingsTarget, result.savings + result.assistanceAmount);
+  const downPaymentCovered = Math.min(result.savingsTarget, result.savings);
   const incomeFrequencyLabel = incomeFrequencyLabels[answers.incomeFrequency] ?? "annual";
+  const modeledHomeLabel = `${bedroomsLabel} in ${getLocationsLabel([result.modeledLocation])}`;
   const summaryItems: { label: string; value: string; step: UpdateStepKey }[] = [
     { label: "Location + home target", value: `${bedroomsLabel} in ${getLocationsLabel(answers.location)}`, step: "bedrooms" },
     { label: "Income", value: answers.income === "" ? "Not entered" : `${formatCurrency(answers.income)} annual (${incomeFrequencyLabel} entry)`, step: "income" },
@@ -197,6 +198,23 @@ export function SummaryNextStepsPage({
     <div className="space-y-4">
       <div className="rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">How close you are</p>
+        <div className="mt-4 rounded-3xl border bg-white/75 p-4">
+          <p className="text-sm font-black capitalize tracking-tight">{modeledHomeLabel}</p>
+          <div className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Purchase price</p>
+              <p className="mt-1 font-black tracking-tight">{formatCurrency(result.estimatedPrice)}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Upfront cash</p>
+              <p className="mt-1 font-black tracking-tight">{formatCurrency(result.savingsTarget)}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Monthly payment</p>
+              <p className="mt-1 font-black tracking-tight">{formatCurrency(result.monthlyPayment)}/mo</p>
+            </div>
+          </div>
+        </div>
         <div className="mt-4 grid gap-3">
           <ProgressBar
             label="Income for payment"
@@ -206,11 +224,11 @@ export function SummaryNextStepsPage({
             description={`This compares a ${paymentToIncomeTargetPercent}% income target with the modeled monthly payment.`}
           />
           <ProgressBar
-            label="Down payment and upfront cash"
+            label="Upfront cash"
             value={downPaymentProgress}
             currentAmount={`${formatCurrency(downPaymentCovered)} covered`}
             targetAmount={formatCurrency(result.savingsTarget)}
-            description={`Savings plus estimated assistance are measured against the upfront savings target.`}
+            description="This target includes the estimated down payment after selected DPA and closing costs."
           />
         </div>
       </div>

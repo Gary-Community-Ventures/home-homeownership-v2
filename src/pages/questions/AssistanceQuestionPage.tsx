@@ -8,7 +8,6 @@ export function AssistanceQuestionPage({
   setAssistanceSelectionMode,
   setShowAssistanceProgramPicker,
   setAnswers,
-  updateAnswer,
   updateEligibility,
   toggleAffordableProgram,
   AssistancePathChoice,
@@ -44,8 +43,11 @@ export function AssistanceQuestionPage({
         mode={assistanceSelectionMode === "affordable" ? "affordable" : "dpa"}
         onEligibilityChange={updateEligibility}
         onSelect={(programId: string) => {
-          updateAnswer(programId);
-          setAnswers((current: any) => ({ ...current, affordablePrograms: [] }));
+          setAnswers((current: any) => ({
+            ...current,
+            assistanceProgram: current.assistanceProgram === programId ? "none" : programId,
+            affordablePrograms: [],
+          }));
         }}
         onAffordableProgramToggle={toggleAffordableProgram}
         onChangePath={() => setShowAssistanceProgramPicker(false)}

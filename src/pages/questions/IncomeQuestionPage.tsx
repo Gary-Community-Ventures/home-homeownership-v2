@@ -11,6 +11,19 @@ export function IncomeQuestionPage({ currentQuestion, answerValue, answers, hous
   const selectedFrequency = incomeFrequencyOptions.find((option) => option.value === answers.incomeFrequency) ?? incomeFrequencyOptions[3];
   const displayedIncome = answerValue === "" ? "" : Math.round(Number(answerValue) / selectedFrequency.multiplier);
 
+  function updateIncomeFrequency(nextFrequency: (typeof incomeFrequencyOptions)[number]) {
+    setAnswers((current: any) => {
+      const currentFrequency = incomeFrequencyOptions.find((option) => option.value === current.incomeFrequency) ?? incomeFrequencyOptions[3];
+      const currentDisplayedIncome = current.income === "" ? "" : Math.round(Number(current.income) / currentFrequency.multiplier);
+
+      return {
+        ...current,
+        incomeFrequency: nextFrequency.value,
+        income: currentDisplayedIncome === "" ? "" : currentDisplayedIncome * nextFrequency.multiplier,
+      };
+    });
+  }
+
   return (
     <div className="space-y-4">
       <div>
@@ -23,7 +36,7 @@ export function IncomeQuestionPage({ currentQuestion, answerValue, answers, hous
               <button
                 key={option.value}
                 type="button"
-                onClick={() => setAnswers((current: any) => ({ ...current, incomeFrequency: option.value }))}
+                onClick={() => updateIncomeFrequency(option)}
                 className={`rounded-2xl border px-3 py-2 text-sm font-black transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isSelected ? "border-primary bg-primary/10 text-primary shadow-glow" : "bg-white/80 text-foreground"}`}
                 aria-pressed={isSelected}
               >

@@ -27,7 +27,7 @@ export function QuestionFlowPage(props: {
   creditScoreOptions: { label: string; range: string; min: number; max: number; value: number }[];
   formatCurrency: (value: number) => string;
   formatPercent: (value: number) => string;
-  explainImpact: (question: any, answers: any, result: any) => string;
+  explainImpact: (question: any, answers: any, result: any) => { headline: string; explanation: string };
   getAssistanceProgram: (programId: string) => any;
   getCreditScoreOption: (score: number) => { range: string };
   estimateHousingForBedrooms: (bedrooms: number, location: string) => any;
