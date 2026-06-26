@@ -22,7 +22,6 @@ export function QuestionFlowPage(props: {
   showAssistanceProgramPicker: boolean;
   assistanceSelectionMode: "choose" | "dpa" | "affordable" | "none";
   eligibility: any;
-  householdSizeOptions: number[];
   bedroomOptions: number[];
   creditScoreOptions: { label: string; range: string; min: number; max: number; value: number }[];
   formatCurrency: (value: number) => string;
@@ -40,7 +39,6 @@ export function QuestionFlowPage(props: {
   setShowAssistanceProgramPicker: (value: boolean) => void;
   setAnswers: React.Dispatch<React.SetStateAction<any>>;
   updateAnswer: (value: string | number | string[]) => void;
-  updateHouseholdSize: (value: number) => void;
   updateEligibility: any;
   selectLocation: (location: string, index?: number) => void;
   handleLocationKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;

@@ -7,7 +7,7 @@ const incomeFrequencyOptions = [
   { value: "annual", label: "Annual", multiplier: 1 },
 ];
 
-export function IncomeQuestionPage({ currentQuestion, answerValue, answers, householdSizeOptions, setAnswers, updateAnswer, updateHouseholdSize }: any) {
+export function IncomeQuestionPage({ currentQuestion, answerValue, answers, setAnswers, updateAnswer }: any) {
   const selectedFrequency = incomeFrequencyOptions.find((option) => option.value === answers.incomeFrequency) ?? incomeFrequencyOptions[3];
   const displayedIncome = answerValue === "" ? "" : Math.round(Number(answerValue) / selectedFrequency.multiplier);
 
@@ -58,32 +58,6 @@ export function IncomeQuestionPage({ currentQuestion, answerValue, answers, hous
           value={displayedIncome}
           onChange={(event) => updateAnswer(event.target.value === "" ? "" : Number(event.target.value) * selectedFrequency.multiplier)}
         />
-      </div>
-
-      <div>
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Household size</p>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">Include everyone who will live in the home; larger households add everyday cost pressure to the score.</p>
-          </div>
-        </div>
-        <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-8">
-          {householdSizeOptions.map((size: number) => {
-            const isSelected = answers.householdSize === size;
-
-            return (
-              <button
-                key={size}
-                type="button"
-                onClick={() => updateHouseholdSize(size)}
-                className={`rounded-2xl border px-3 py-2 text-sm font-black transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isSelected ? "border-primary bg-primary/10 text-primary shadow-glow" : "bg-white/80 text-foreground"}`}
-                aria-pressed={isSelected}
-              >
-                {size}
-              </button>
-            );
-          })}
-        </div>
       </div>
     </div>
   );

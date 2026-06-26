@@ -12,7 +12,6 @@ type Answers = {
   location: string[];
   income: number | "";
   incomeFrequency: "weekly" | "biweekly" | "monthly" | "annual";
-  householdSize: number;
   bedrooms: number;
   savings: number | "";
   creditScore: number;
@@ -644,7 +643,6 @@ const initialAnswers: Answers = {
   location: [],
   income: "",
   incomeFrequency: "annual",
-  householdSize: 2,
   bedrooms: 3,
   savings: "",
   creditScore: 620,
@@ -1248,7 +1246,6 @@ const coloradoLocations = [...baseColoradoLocations, ...coloradoMunicipalityLoca
   (locationOption, index, locations) => locations.findIndex((otherLocation) => otherLocation.name === locationOption.name) === index,
 );
 
-const householdSizeOptions = [1, 2, 3, 4, 5, 6, 7, 8];
 const bedroomOptions = [1, 2, 3, 4, 5, 6];
 const creditScoreOptions = [
   { label: "Needs work", range: "560 - 639", min: 560, max: 639, value: 620 },
@@ -1315,7 +1312,6 @@ function hasAnswerValue(answers: Answers, key: QuestionKey) {
 function getAnswersWithoutQuestionAnswer(answers: Answers, key: QuestionKey): Answers {
   const baselineAnswers = { ...answers, [key]: initialAnswers[key] };
 
-  if (key === "income") baselineAnswers.householdSize = initialAnswers.householdSize;
   if (key === "assistanceProgram") baselineAnswers.affordablePrograms = initialAnswers.affordablePrograms;
   if (key === "affordablePrograms") baselineAnswers.assistanceProgram = initialAnswers.assistanceProgram;
 
@@ -1633,7 +1629,6 @@ function calculateScore(answers: Answers, answeredKeys: QuestionKey[], modeledLo
   const affordablePriceReductionAmount = Math.round(marketEstimatedPrice * affordablePriceReductionRate);
   const estimatedPrice = Math.max(0, marketEstimatedPrice - affordablePriceReductionAmount);
   const income = Number(answers.income) || 0;
-  const householdSize = Math.max(1, Math.min(8, Math.round(answers.householdSize || 1)));
   const locationScore = Math.max(0, Math.min(100, 112 - locationMultiplier * 40));
   const bedroomScore = Math.max(0, Math.min(100, 106 - answers.bedrooms * 9));
   const creditScore = Math.max(0, Math.min(100, (answers.creditScore - 560) / 2.9));
@@ -1653,15 +1648,13 @@ function calculateScore(answers: Answers, answeredKeys: QuestionKey[], modeledLo
   const annualHousingCost = monthlyPayment * 12;
   const affordableMonthlyPayment = (income / 12) * PAYMENT_TO_INCOME_TARGET;
   const housingRatio = annualHousingCost / Math.max(income, 1);
-  const householdSizeAdjustment = Math.max(0, householdSize - 2) * 0.015;
-  const affordabilityRatio = housingRatio + householdSizeAdjustment;
+  const affordabilityRatio = housingRatio;
   const monthlyPaymentReadiness = Math.max(0, Math.min(100, (affordableMonthlyPayment / Math.max(monthlyPayment, 1)) * 100));
   const downPaymentReadiness = savingsTarget <= 0 ? 100 : Math.max(0, Math.min(100, (savings / savingsTarget) * 100));
   const partialScores: Record<QuestionKey, number> = {
     location: locationScore,
     income: monthlyPaymentReadiness,
     incomeFrequency: 50,
-    householdSize: 50,
     bedrooms: bedroomScore,
     savings: downPaymentReadiness,
     creditScore,
@@ -1685,7 +1678,6 @@ function calculateScore(answers: Answers, answeredKeys: QuestionKey[], modeledLo
     monthlyRent: housingEstimate.monthlyRent,
     housingRatio,
     affordabilityRatio,
-    householdSizeAdjustment,
     targetDownPayment,
     cashDownPaymentTarget,
     savings,
@@ -1726,19 +1718,17 @@ function explainImpact(question: Question, answers: Answers, result: ReturnType<
   }
 
   if (question.key === "income") {
-    const householdPhrase = answers.householdSize > 2 ? ` A ${answers.householdSize}-person household also means more everyday costs to leave room for.` : "";
-
     if (result.affordabilityRatio > 0.36) return {
       headline: "The payment may be too high for this income",
-      explanation: `The estimated housing cost takes up a large share of monthly income. Buying may still be possible, but you may need a lower price, more income, assistance, or less monthly debt.${householdPhrase}`,
+      explanation: "The estimated housing cost takes up a large share of monthly income. Buying may still be possible, but you may need a lower price, more income, assistance, or less monthly debt.",
     };
     if (result.affordabilityRatio < 0.27) return {
       headline: "This income gives the payment more room",
-      explanation: `The estimated payment looks easier to carry with this income. You would still want a lender to verify taxes, insurance, debts, and the loan option.${householdPhrase}`,
+      explanation: "The estimated payment looks easier to carry with this income. You would still want a lender to verify taxes, insurance, debts, and the loan option.",
     };
     return {
       headline: "The payment may be possible, but tight",
-      explanation: `The estimated payment is not clearly out of reach, but there may not be much cushion. A smaller home, a different area, or assistance could make it feel safer.${householdPhrase}`,
+      explanation: "The estimated payment is not clearly out of reach, but there may not be much cushion. A smaller home, a different area, or assistance could make it feel safer.",
     };
   }
 
@@ -1832,7 +1822,7 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
     return [
       {
         title: "Payment-to-income target",
-        description: `This guide estimates housing costs at ${Math.round(result.housingRatio * 100)}% of income, then scores affordability at ${Math.round(result.affordabilityRatio * 100)}% after household size; many buyers use 30% as a planning target with room up to 36% depending on the loan and budget.`,
+        description: `This guide estimates housing costs at ${Math.round(result.housingRatio * 100)}% of income; many buyers use 30% as a planning target with room up to 36% depending on the loan and budget.`,
         url: "https://www.consumerfinance.gov/owning-a-home/prepare/mortgage-affordability/",
       },
       {
@@ -2534,7 +2524,6 @@ function App() {
       ...parsed,
       location,
       incomeFrequency: ["weekly", "biweekly", "monthly", "annual"].includes(parsed.incomeFrequency ?? "") ? parsed.incomeFrequency! : initialAnswers.incomeFrequency,
-      householdSize: Math.max(1, Math.min(8, Math.round(parsed.householdSize ?? initialAnswers.householdSize))),
       bedrooms: Math.max(1, parsed.bedrooms ?? parsed.rooms ?? initialAnswers.bedrooms),
       savings: parsed.savings === "" || parsed.savings === undefined ? initialAnswers.savings : Math.max(0, Number(parsed.savings) || 0),
       affordablePrograms: Array.isArray(parsed.affordablePrograms) ? parsed.affordablePrograms.slice(0, 1) : [],
@@ -2711,10 +2700,6 @@ function App() {
 
   function updateAnswer(value: string | number | string[]) {
     setAnswers((current) => ({ ...current, [currentQuestion.key]: value }));
-  }
-
-  function updateHouseholdSize(value: number) {
-    setAnswers((current) => ({ ...current, householdSize: Math.max(1, Math.min(8, Math.round(value))) }));
   }
 
   function toggleAffordableProgram(programId: string) {
@@ -3103,7 +3088,6 @@ function App() {
                 showAssistanceProgramPicker={showAssistanceProgramPicker}
                 assistanceSelectionMode={assistanceSelectionMode}
                 eligibility={eligibility}
-                householdSizeOptions={householdSizeOptions}
                 bedroomOptions={bedroomOptions}
                 creditScoreOptions={creditScoreOptions}
                 formatCurrency={formatCurrency}
@@ -3121,7 +3105,6 @@ function App() {
                 setShowAssistanceProgramPicker={setShowAssistanceProgramPicker}
                 setAnswers={setAnswers}
                 updateAnswer={updateAnswer}
-                updateHouseholdSize={updateHouseholdSize}
                 updateEligibility={updateEligibility}
                 selectLocation={selectLocation}
                 handleLocationKeyDown={handleLocationKeyDown}
