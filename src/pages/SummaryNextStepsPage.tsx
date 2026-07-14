@@ -124,6 +124,35 @@ export function SummaryNextStepsPage({
   const lenderContacts = selectedLender ? [selectedLender, ...lenderOptions.filter((contact) => contact.id !== selectedLender.id)].slice(0, 2) : lenderOptions;
   const realtorContacts = selectedRealtor ? [selectedRealtor, ...realtorOptions.filter((contact) => contact.id !== selectedRealtor.id)].slice(0, 2) : realtorOptions;
 
+  // Readiness verdict: a single, plain answer built from the two things the score blends.
+  const score = Math.round(result.score ?? 0);
+  const cashStillNeeded = Math.max(0, Math.round(result.cashNeededAfterAssistance ?? 0));
+  const monthlyShortfall = Math.max(0, Math.round((result.monthlyPayment ?? 0) - incomeAvailableForPayment));
+  const isReady = score >= 80;
+  const isClose = score >= 50 && score < 80;
+  // The lower of the two readiness scores is the bigger constraint.
+  const limitingFactor: "income" | "cash" = incomeProgress <= downPaymentProgress ? "income" : "cash";
+  const readinessHeadline = isReady
+    ? "You look ready to buy this home"
+    : isClose
+      ? "You're getting close to buying this home"
+      : "You're still getting ready to buy this home";
+  const readyAnswer = isReady
+    ? "Based on these estimates, buying this home looks realistic. The main step left is to confirm the numbers with a lender before making offers."
+    : isClose
+      ? "Not quite yet for this exact home — but you're within reach. Closing one gap below would get you there."
+      : "Not yet for this specific home. The estimates show a meaningful gap to close first, but you have a clear target to work toward.";
+  const limitingText = isReady
+    ? "Both your income and your savings are close to the targets for this home."
+    : limitingFactor === "income"
+      ? `Monthly payment is the bigger hurdle. The estimated ${formatCurrency(result.monthlyPayment)}/mo is about ${formatCurrency(monthlyShortfall)}/mo above the ${paymentToIncomeTargetPercent}% of income lenders typically look for.`
+      : `Upfront cash is the bigger hurdle. After your savings, you'd still need about ${formatCurrency(cashStillNeeded)} for the down payment and closing costs.`;
+  const reachingTargetText = isReady
+    ? "Confirming these numbers with a lender is the main remaining step."
+    : limitingFactor === "income"
+      ? "Raising income, choosing a lower price, or a lower rate would bring the monthly payment into a sustainable range — the main thing lenders check."
+      : `Covering that ${formatCurrency(cashStillNeeded)} — through more savings or down payment assistance — would let you pay the down payment and closing costs without stretching.`;
+
   function UpdateButton({ step }: { step: UpdateStepKey }) {
     return (
       <button type="button" onClick={() => onUpdateStep(step)} className="shrink-0 rounded-full bg-secondary px-3 py-1.5 text-xs font-bold text-secondary-foreground transition hover:bg-secondary/80">
@@ -196,8 +225,32 @@ export function SummaryNextStepsPage({
 
   return (
     <div className="space-y-4">
+      <div className="space-y-3 rounded-3xl border border-primary/15 bg-gradient-to-br from-primary/10 to-white/85 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Your readiness</p>
+            <h3 className="mt-1 text-2xl font-black leading-tight tracking-tight">{readinessHeadline}</h3>
+          </div>
+          <div className="shrink-0 text-right">
+            <p className="text-3xl font-black leading-none text-primary">{score}%</p>
+            <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">{result.recommendation}</p>
+          </div>
+        </div>
+        <p className="text-sm leading-6 text-muted-foreground">{readyAnswer}</p>
+        <p className="text-sm leading-6 text-muted-foreground">
+          <span className="font-bold text-foreground">Why this score:</span> it blends two things — your income covers about{" "}
+          <strong className="font-bold text-foreground">{incomeProgress}%</strong> of the estimated monthly payment, and your savings cover about{" "}
+          <strong className="font-bold text-foreground">{downPaymentProgress}%</strong> of the upfront cash.
+        </p>
+        <div className="rounded-2xl border border-primary/20 bg-white/70 p-3">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Biggest factor right now</p>
+          <p className="mt-1 text-sm leading-6 text-foreground">{limitingText}</p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">{reachingTargetText}</p>
+        </div>
+      </div>
+
       <div className="rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">How close you are</p>
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">The home you're modeling</p>
         <div className="mt-4 rounded-3xl border bg-white/75 p-4">
           <p className="text-sm font-black capitalize tracking-tight">{modeledHomeLabel}</p>
           <div className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
@@ -206,7 +259,7 @@ export function SummaryNextStepsPage({
               <p className="mt-1 font-black tracking-tight">{formatCurrency(result.estimatedPrice)}</p>
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Upfront cash</p>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Upfront cash needed</p>
               <p className="mt-1 font-black tracking-tight">{formatCurrency(result.savingsTarget)}</p>
             </div>
             <div>
@@ -226,14 +279,19 @@ export function SummaryNextStepsPage({
           <ProgressBar
             label="Upfront cash"
             value={downPaymentProgress}
-            currentAmount={`${formatCurrency(downPaymentCovered)} covered`}
+            currentAmount={`${formatCurrency(downPaymentCovered)} saved`}
             targetAmount={formatCurrency(result.savingsTarget)}
-            description="This target includes the estimated down payment after selected DPA and closing costs."
+            description={cashStillNeeded > 0
+              ? `Total upfront cash after your selected down payment assistance is ${formatCurrency(result.savingsTarget)} (down payment plus closing costs). You've saved ${formatCurrency(downPaymentCovered)}, so about ${formatCurrency(cashStillNeeded)} is still needed.`
+              : `Total upfront cash after your selected down payment assistance is ${formatCurrency(result.savingsTarget)} (down payment plus closing costs). Your savings cover it.`}
           />
         </div>
       </div>
 
-      <div className="divide-y divide-border/70">
+      <div className="rounded-3xl border bg-white/60 p-4">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Your answers</p>
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">Tap Update on any answer to change it and see your readiness recalculate.</p>
+        <div className="mt-2 divide-y divide-border/70">
         {summaryItems.map((item) => (
           <div key={item.step} className="flex items-center justify-between gap-4 py-3">
             <div>
@@ -243,6 +301,7 @@ export function SummaryNextStepsPage({
             <UpdateButton step={item.step} />
           </div>
         ))}
+        </div>
       </div>
 
       <div className="space-y-3">
