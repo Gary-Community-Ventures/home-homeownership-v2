@@ -2692,13 +2692,15 @@ function App() {
     const scrollToTop = () => {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
       document.scrollingElement?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
     };
 
     scrollToTop();
     const animationFrame = window.requestAnimationFrame(scrollToTop);
 
     return () => window.cancelAnimationFrame(animationFrame);
-  }, [pageIndex, showAssistanceProgramPicker, contactPicker]);
+  }, [step, showIntro, showExplanation, showSummary, showAssistanceProgramPicker, contactPicker]);
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(answers));
