@@ -227,7 +227,7 @@ const eligibilityQuestions: { key: keyof EligibilityAnswers; label: string; desc
   { key: "firstGenerationBuyer", label: "First-generation buyer", description: "Your parents/guardians have not owned a home, depending on program rules." },
   { key: "disabilityEligible", label: "Disability eligibility", description: "You or a qualifying household member has disability documentation." },
   { key: "veteranEligible", label: "Veteran eligibility", description: "You may qualify for veteran-specific exceptions or programs." },
-  { key: "localRequirement", label: "Local area/workforce fit", description: "You live, work, or are buying in a required city, county, or community." },
+  { key: "localRequirement", label: "Local or workforce connection", description: "Some programs are only for people tied to a specific place. For example, a Summit County program may be open only to people who live or work in Summit County. Answer yes if you live, work, or are buying in the area a program asks for." },
 ];
 
 const downPaymentAssistancePrograms: AssistanceProgram[] = [
@@ -2220,15 +2220,75 @@ function DownPaymentAssistanceList({
   const filteredPrograms = locationFilteredPrograms
     .filter((program) => programMatchesEligibility(program, eligibility))
     .sort((first, second) => getAssistanceFit(second, result.estimatedPrice, targetDownPayment).score - getAssistanceFit(first, result.estimatedPrice, targetDownPayment).score);
-  const topPrograms = filteredPrograms.slice(0, 3);
-  const remainingPrograms = filteredPrograms.slice(3);
-  const displayedPrograms = [
-    ...topPrograms,
-    ...(showAllPrograms ? remainingPrograms : []),
-  ];
+  const recommendedPrograms = filteredPrograms.slice(0, 2);
+  const otherPrograms = filteredPrograms.slice(2);
   const bestProgramId = filteredPrograms[0]?.id;
   const countyLabel = countyNames.length ? countyNames.join(", ") : "";
-  const hiddenProgramCount = remainingPrograms.length;
+  const hiddenProgramCount = otherPrograms.length;
+
+  const renderProgramCard = (program: AssistanceProgram) => {
+    const isSelected = selectedProgramId === program.id;
+    const isBestProgram = bestProgramId === program.id;
+    const { estimatedAssistance, estimatedCashNeeded, coverageRate, repaymentProfile } = getAssistanceFit(program, result.estimatedPrice, targetDownPayment);
+    const requirements = getProgramRequirements(program);
+    const repaymentClassName = repaymentProfile.tone === "best" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground";
+
+    return (
+      <button
+        key={program.id}
+        type="button"
+        onClick={() => onSelect(program.id)}
+        className={`rounded-3xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+          isSelected ? "border-primary bg-primary/10 shadow-glow" : "bg-white/75"
+        }`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-black tracking-tight">{program.title}</p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{program.bestFor}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-secondary px-3 py-1 text-xs font-black text-secondary-foreground">{program.assistance}</span>
+            <span className={`h-4 w-4 rounded-full border-2 ${isSelected ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
+          </div>
+        </div>
+
+        <div className="mt-3 rounded-2xl border border-primary/20 bg-primary/10 p-3">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Cash you'd still need</p>
+              <p className="mt-1 text-3xl font-black tracking-tight text-foreground">{formatCurrency(estimatedCashNeeded)}</p>
+            </div>
+            <div className="text-right text-xs font-semibold leading-5 text-muted-foreground">
+              after about<br />
+              <span className="text-base font-black text-primary">{formatCurrency(estimatedAssistance)}</span><br />
+              in help
+            </div>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 border-t border-primary/15 pt-2 text-xs text-muted-foreground">
+            <span>Down payment: <span className="font-bold text-foreground">{formatCurrency(targetDownPayment)}</span></span>
+            <span>Help covers <span className="font-bold text-foreground">{formatPercent(coverageRate)}</span> of it</span>
+          </div>
+        </div>
+
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">{program.description}</p>
+        {requirements.length ? (
+          <div className="mt-3 rounded-2xl bg-secondary/60 p-3 text-xs leading-5 text-secondary-foreground">
+            <p className="font-black uppercase tracking-[0.16em]">Requirements to verify</p>
+            <ul className="mt-1 space-y-1">
+              {requirements.map((requirement) => (
+                <li key={requirement}>• {requirement}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <span className={`rounded-full px-3 py-1 font-black ${repaymentClassName}`}>{repaymentProfile.label}</span>
+          {isBestProgram ? <span className="font-semibold text-primary">Best fit favors help you don't repay before the largest dollar amount.</span> : null}
+        </div>
+      </button>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -2239,92 +2299,51 @@ function DownPaymentAssistanceList({
       <EligibilityQuestionnaire eligibility={eligibility} onChange={onEligibilityChange} />
       <div className="space-y-4 rounded-3xl bg-gradient-to-br from-white/85 to-primary/10 p-4">
         <div>
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Down payment help</p>
-        <h3 className="mt-1 text-xl font-black tracking-tight">Choose an assistance option</h3>
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Down payment assistance</p>
+        <h3 className="mt-1 text-xl font-black tracking-tight">Choose a down payment assistance option</h3>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          {countyLabel ? `Showing ${filteredPrograms.length} of ${locationFilteredPrograms.length} statewide or local programs for ${countyLabel} ${countyNames.length === 1 ? "County" : "Counties"} after your filters.` : `Showing ${filteredPrograms.length} of ${locationFilteredPrograms.length} programs after your filters; choose one or more locations to narrow local programs by county.`} Verify final eligibility with the program or lender.
+          Down payment assistance (DPA) programs help cover the cash you need to buy.
+          {countyLabel ? ` We've limited local programs to ${countyLabel} ${countyNames.length === 1 ? "County" : "Counties"} based on where you want to buy — showing ${filteredPrograms.length} of ${locationFilteredPrograms.length} that fit.` : ` Showing ${filteredPrograms.length} of ${locationFilteredPrograms.length}. Pick a location earlier to auto-limit local programs to your county.`} Always confirm eligibility with the program or lender.
         </p>
+        <div className="mt-3 rounded-2xl border border-primary/15 bg-white/70 p-3 text-xs leading-5 text-muted-foreground">
+          <p className="font-black uppercase tracking-[0.16em] text-primary">Good to know</p>
+          <ul className="mt-1 space-y-1">
+            <li><span className="font-bold text-foreground">DPA</span> = down payment assistance.</li>
+            <li><span className="font-bold text-foreground">CHFA</span> = Colorado Housing and Finance Authority, the state agency behind many programs.</li>
+            <li><span className="font-bold text-foreground">AMI</span> = Area Median Income, the typical income for your area; income limits are set as a percentage of it.</li>
+            <li><span className="font-bold text-foreground">FHA</span> = Federal Housing Administration, a common government-backed loan with a low down payment.</li>
+            <li><span className="font-bold text-foreground">HUD</span> = U.S. Department of Housing and Urban Development, the federal housing agency.</li>
+          </ul>
+        </div>
       </div>
 
-      <div className="grid gap-3">
-        {displayedPrograms.length ? displayedPrograms.map((program) => {
-          const isSelected = selectedProgramId === program.id;
-          const isBestProgram = bestProgramId === program.id;
-          const { estimatedAssistance, estimatedCashNeeded, coverageRate, repaymentProfile } = getAssistanceFit(program, result.estimatedPrice, targetDownPayment);
-          const requirements = getProgramRequirements(program);
-          const repaymentClassName = repaymentProfile.tone === "best"
-            ? "bg-primary text-primary-foreground"
-            : "bg-muted text-muted-foreground";
+      {recommendedPrograms.length ? (
+        <div className="space-y-3">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-primary">Recommended for you</p>
+          {recommendedPrograms.map((program) => renderProgramCard(program))}
+        </div>
+      ) : (
+        <div className="rounded-3xl border bg-white/75 p-4 text-sm leading-6 text-muted-foreground">
+          No programs match those filters. Change a “no” answer to “unsure” if you want to keep programs visible while you verify a requirement.
+        </div>
+      )}
 
-          return (
-            <button
-              key={program.id}
-              type="button"
-              onClick={() => onSelect(program.id)}
-              className={`rounded-3xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                isSelected ? "border-primary bg-primary/10 shadow-glow" : "bg-white/75"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-black tracking-tight">{program.title}</p>
-                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{program.bestFor}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-secondary px-3 py-1 text-xs font-black text-secondary-foreground">{program.assistance}</span>
-                  <span className={`h-4 w-4 rounded-full border-2 ${isSelected ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
-                </div>
-              </div>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">{program.description}</p>
-              {requirements.length ? (
-                <div className="mt-3 rounded-2xl bg-secondary/60 p-3 text-xs leading-5 text-secondary-foreground">
-                  <p className="font-black uppercase tracking-[0.16em]">Requirements to verify</p>
-                  <ul className="mt-1 space-y-1">
-                    {requirements.map((requirement) => (
-                      <li key={requirement}>• {requirement}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-              <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-                <div className="rounded-2xl bg-white/80 p-2.5">
-                  <p className="text-muted-foreground">3.5% down</p>
-                  <p className="mt-1 font-bold">{formatCurrency(targetDownPayment)}</p>
-                </div>
-                <div className="rounded-2xl bg-white/80 p-2.5">
-                  <p className="text-muted-foreground">Assistance</p>
-                  <p className="mt-1 font-bold">{formatCurrency(estimatedAssistance)}</p>
-                </div>
-                <div className="rounded-2xl bg-white/80 p-2.5">
-                  <p className="text-muted-foreground">Covers</p>
-                  <p className="mt-1 font-bold">{formatPercent(coverageRate)}</p>
-                </div>
-                <div className="rounded-2xl bg-white/80 p-2.5">
-                  <p className="text-muted-foreground">Cash needed</p>
-                  <p className="mt-1 font-bold">{formatCurrency(estimatedCashNeeded)}</p>
-                </div>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                {isBestProgram ? <span className="rounded-full bg-primary px-3 py-1 font-black uppercase tracking-[0.14em] text-primary-foreground">Best option</span> : null}
-                <span className={`rounded-full px-3 py-1 font-black ${repaymentClassName}`}>{repaymentProfile.label}</span>
-                {isBestProgram ? <span className="font-semibold text-primary">Best fit favors non-repayable help before the largest dollar amount.</span> : null}
-              </div>
-            </button>
-          );
-        }) : (
-          <div className="rounded-3xl border bg-white/75 p-4 text-sm leading-6 text-muted-foreground">
-            No programs match those filters. Change a “no” answer to “unsure” if you want to keep programs visible while you verify a requirement.
-          </div>
-        )}
-      </div>
       {hiddenProgramCount ? (
-        <button
-          type="button"
-          onClick={() => setShowAllPrograms((current) => !current)}
-          className="w-full rounded-full border bg-white/75 px-4 py-3 text-sm font-black text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {showAllPrograms ? "Show fewer options" : `Show ${hiddenProgramCount} more option${hiddenProgramCount === 1 ? "" : "s"}`}
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={() => setShowAllPrograms((current) => !current)}
+            className="w-full rounded-full border bg-white/75 px-4 py-3 text-sm font-black text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {showAllPrograms ? "Hide other options" : `Show ${hiddenProgramCount} more option${hiddenProgramCount === 1 ? "" : "s"}`}
+          </button>
+          {showAllPrograms ? (
+            <div className="space-y-3">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Other options</p>
+              {otherPrograms.map((program) => renderProgramCard(program))}
+            </div>
+          ) : null}
+        </>
       ) : null}
       </div>
       </>
