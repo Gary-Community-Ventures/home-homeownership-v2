@@ -227,7 +227,7 @@ const eligibilityQuestions: { key: keyof EligibilityAnswers; label: string; desc
   { key: "firstGenerationBuyer", label: "First-generation buyer", description: "Your parents/guardians have not owned a home, depending on program rules." },
   { key: "disabilityEligible", label: "Disability eligibility", description: "You or a qualifying household member has disability documentation." },
   { key: "veteranEligible", label: "Veteran eligibility", description: "You may qualify for veteran-specific exceptions or programs." },
-  { key: "localRequirement", label: "Local or workforce connection", description: "Some programs are only for people tied to a specific place. For example, a Summit County program may be open only to people who live or work in Summit County. Answer yes if you live, work, or are buying in the area a program asks for." },
+  { key: "localRequirement", label: "Local area or essential worker", description: "A few programs are limited to specific buyers. Some are only for people who live or work in a required area, like a county's workforce-housing program. Others are only for essential workers — pre-K–12 teachers, police officers, firefighters, or EMTs (for example, Good Neighbor Next Door). Answer yes if any of these describe you." },
 ];
 
 const downPaymentAssistancePrograms: AssistanceProgram[] = [
@@ -1554,7 +1554,7 @@ function programMatchesEligibility(program: AssistanceProgram, eligibility: Elig
   if (eligibility.firstGenerationBuyer === "no" && requirements.includes("first-generation")) return false;
   if (eligibility.disabilityEligible === "no" && (requirements.includes("disability") || requirements.includes("disabled"))) return false;
   if (eligibility.veteranEligible === "no" && requirements.includes("veteran")) return false;
-  if (eligibility.localRequirement === "no" && (requirements.includes("workforce") || requirements.includes("local") || requirements.includes("employee") || requirements.includes("service area") || requirements.includes("city of") || requirements.includes("county purchase") || requirements.includes("county buyer"))) return false;
+  if (eligibility.localRequirement === "no" && (requirements.includes("workforce") || requirements.includes("local") || requirements.includes("employee") || requirements.includes("service area") || requirements.includes("city of") || requirements.includes("county purchase") || requirements.includes("county buyer") || requirements.includes("law enforcement") || requirements.includes("firefighter") || requirements.includes("teacher"))) return false;
 
   return true;
 }
