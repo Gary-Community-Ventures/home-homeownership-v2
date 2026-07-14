@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, ExternalLink, RotateCcw } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ExternalLink, Minus, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -1981,226 +1981,209 @@ function EligibilityQuestionnaire({ eligibility, onChange }: { eligibility: Elig
   );
 }
 
+function ProsCons({ pros, cons }: { pros: string[]; cons: string[] }) {
+  return (
+    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+      <div className="rounded-2xl border border-primary/25 bg-primary/5 p-3">
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-primary">Pros</p>
+        <ul className="mt-2 space-y-1.5 text-sm font-medium leading-5 text-foreground">
+          {pros.map((pro) => (
+            <li key={pro} className="flex items-start gap-2">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+              <span>{pro}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="rounded-2xl border border-muted-foreground/20 bg-muted/50 p-3">
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Cons</p>
+        <ul className="mt-2 space-y-1.5 text-sm font-medium leading-5 text-foreground">
+          {cons.map((con) => (
+            <li key={con} className="flex items-start gap-2">
+              <Minus className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <span>{con}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 function AssistancePathChoice({
   selectedPath,
   onChoosePath,
   onChooseNone,
+  result,
+  formatCurrency,
 }: {
   selectedPath: "dpa" | "affordable" | "none" | null;
   onChoosePath: (path: Extract<AssistanceSelectionMode, "dpa" | "affordable">) => void;
   onChooseNone: () => void;
+  result: ReturnType<typeof calculateScore>;
+  formatCurrency: (value: number) => string;
 }) {
-  const paths = [
-    {
-      id: "dpa" as const,
-      eyebrow: "Down payment assistance",
-      title: "Help with the cash you need to close",
-      description: "Grants, forgivable loans, or second mortgages can cover part of your down payment and sometimes closing costs while you buy a regular market-rate home.",
-      visualSteps: ["Pick a regular home", "Program adds cash", "Bring less upfront"],
-      visualLeft: "Down payment",
-      visualRight: "Your cash",
-      pros: ["Can lower upfront cash needed", "Often works with many homes and lenders", "Some options do not need to be repaid"],
-      cons: ["May add a second loan or repayment rules", "Eligibility and lender requirements vary", "Usually does not lower the home price itself"],
-      bestWhen: "you are close on monthly payment but need help covering the upfront down payment or closing cash.",
-      action: "Choose down payment help",
-    },
-    {
-      id: "affordable" as const,
-      eyebrow: "Affordable ownership",
-      title: "A lower-priced home with program rules",
-      description: "Community land trusts, deed-restricted homes, and similar programs can reduce the purchase price or monthly cost in exchange for income limits and resale rules.",
-      visualSteps: ["Find program inventory", "Buy at a lower price", "Follow resale rules"],
-      visualLeft: "Market price",
-      visualRight: "Program price",
-      pros: ["Can make the purchase price meaningfully lower", "May reduce the monthly payment hurdle", "Often designed for long-term community affordability"],
-      cons: ["Inventory can be limited", "Income, location, or household rules may apply", "Resale price and equity growth may be restricted"],
-      bestWhen: "the market-rate price is the biggest barrier and you are comfortable with program inventory and resale rules.",
-      action: "Choose affordable ownership",
-    },
-  ];
+  const round100 = (value: number) => Math.round(value / 100) * 100;
+  const round1k = (value: number) => Math.round(value / 1000) * 1000;
+  const homePrice = Math.max(0, Math.round(result?.estimatedPrice ?? 0));
+  const marketPrice = Math.max(0, Math.round(result?.marketEstimatedPrice ?? homePrice));
+  const downPayment = Math.max(0, Math.round(result?.targetDownPayment ?? 0));
+  const hasEstimate = homePrice > 0 && downPayment > 0;
+
+  // Example split for the down payment assistance visualization.
+  const dpaHelp = round100(downPayment * 0.7);
+  const dpaYou = Math.max(0, downPayment - dpaHelp);
+  const dpaHelpPercent = downPayment > 0 ? Math.round((dpaHelp / downPayment) * 100) : 70;
+
+  // Example price reduction for the affordable ownership visualization.
+  const affReduction = round1k(marketPrice * 0.12);
+  const affPrice = Math.max(0, marketPrice - affReduction);
+  const affReductionPercent = marketPrice > 0 ? Math.round((affReduction / marketPrice) * 100) : 12;
 
   return (
     <div className="space-y-4">
       <div className="grid gap-4">
-        {paths.map((path) => {
-          const isSelected = selectedPath === path.id;
-
-          return (
-            <div
-              key={path.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => onChoosePath(path.id)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  onChoosePath(path.id);
-                }
-              }}
-              className={`flex cursor-pointer flex-col rounded-3xl border p-4 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isSelected ? "border-primary bg-primary/10 shadow-glow" : "bg-white/75"}`}
-              aria-pressed={isSelected}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">{path.eyebrow}</p>
-                  <h3 className="mt-1 text-lg font-black tracking-tight">{path.title}</h3>
-                </div>
-                <span className={`mt-1 h-4 w-4 shrink-0 rounded-full border-2 ${isSelected ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
-              </div>
-
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">{path.description}</p>
-              <div className="mt-3 grid gap-1">
-                {path.visualSteps.map((step, index) => (
-                  <div key={step} className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[0.65rem] font-black text-secondary-foreground">{index + 1}</span>
-                    {step}
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 rounded-3xl bg-white/80 p-3">
-                {path.id === "dpa" ? (
-                  <div className="rounded-2xl bg-white/75 p-3">
-                    <div className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">
-                      <span>Total down payment</span>
-                      <span>100%</span>
-                    </div>
-                    <div className="mt-3 overflow-hidden rounded-2xl border bg-muted shadow-inner">
-                      <div className="flex h-16 text-center text-xs font-black leading-none">
-                        <div className="flex w-[70%] flex-col items-center justify-center bg-primary px-2 text-primary-foreground">
-                          <span>DPA part</span>
-                          <span className="mt-1 text-[0.65rem] uppercase tracking-[0.12em] opacity-85">program help</span>
-                        </div>
-                        <div className="flex w-[30%] flex-col items-center justify-center bg-secondary px-2 text-secondary-foreground">
-                          <span>You part</span>
-                          <span className="mt-1 text-[0.65rem] uppercase tracking-[0.12em] opacity-85">your cash</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-3 grid gap-2 text-xs font-semibold text-muted-foreground sm:grid-cols-2">
-                      <div className="rounded-xl bg-primary/10 p-2">
-                        <span className="font-black text-primary">DPA part:</span> grant or second loan covers some of the down payment.
-                      </div>
-                      <div className="rounded-xl bg-secondary/70 p-2 text-secondary-foreground">
-                        <span className="font-black">You part:</span> the remaining cash you bring to closing.
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl bg-white/75 p-3">
-                    <div className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">
-                      <span>Market home price</span>
-                      <span>100%</span>
-                    </div>
-                    <div className="mt-3 overflow-hidden rounded-2xl border bg-muted shadow-inner">
-                      <div className="flex h-16 text-center text-xs font-black leading-none">
-                        <div className="flex w-[35%] flex-col items-center justify-center bg-primary px-2 text-primary-foreground">
-                          <span>Program part</span>
-                          <span className="mt-1 text-[0.65rem] uppercase tracking-[0.12em] opacity-85">price reduction</span>
-                        </div>
-                        <div className="flex w-[65%] flex-col items-center justify-center bg-secondary px-2 text-secondary-foreground">
-                          <span>You part</span>
-                          <span className="mt-1 text-[0.65rem] uppercase tracking-[0.12em] opacity-85">program price</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-3 grid gap-2 text-xs font-semibold text-muted-foreground sm:grid-cols-2">
-                      <div className="rounded-xl bg-primary/10 p-2">
-                        <span className="font-black text-primary">Program part:</span> the discount, land trust, or restriction that lowers the price.
-                      </div>
-                      <div className="rounded-xl bg-secondary/70 p-2 text-secondary-foreground">
-                        <span className="font-black">You part:</span> the lower program price you qualify to buy.
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-3 grid gap-3">
-                <div className="rounded-2xl bg-primary/10 p-3">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Pros</p>
-                  <ul className="mt-2 space-y-1 text-sm leading-5 text-muted-foreground">
-                    {path.pros.map((pro) => <li key={pro}>• {pro}</li>)}
-                  </ul>
-                </div>
-                <div className="rounded-2xl bg-muted/70 p-3">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Cons</p>
-                  <ul className="mt-2 space-y-1 text-sm leading-5 text-muted-foreground">
-                    {path.cons.map((con) => <li key={con}>• {con}</li>)}
-                  </ul>
-                </div>
-              </div>
-              <div className="mt-3 rounded-2xl bg-primary/10 p-3 text-sm leading-5 text-muted-foreground">
-                <span className="font-bold text-primary">Best when:</span> {path.bestWhen}
-              </div>
-            </div>
-          );
-        })}
-
-        <button
-          type="button"
-          onClick={onChooseNone}
-          className={`rounded-3xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selectedPath === "none" ? "border-primary bg-primary/10 shadow-glow" : "bg-white/75"}`}
+        {/* Down payment assistance */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => onChoosePath("dpa")}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onChoosePath("dpa");
+            }
+          }}
+          className={`flex cursor-pointer flex-col rounded-3xl border p-4 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selectedPath === "dpa" ? "border-primary bg-primary/10 shadow-glow" : "bg-white/75"}`}
+          aria-pressed={selectedPath === "dpa"}
         >
-          <div className="flex h-full flex-col">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">No assistance</p>
-                <h3 className="mt-1 text-lg font-black tracking-tight">Keep the plan simple</h3>
-              </div>
-              <span className={`mt-1 h-4 w-4 shrink-0 rounded-full border-2 ${selectedPath === "none" ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Down payment assistance</p>
+              <h3 className="mt-1 text-lg font-black tracking-tight">Help with the cash to close</h3>
             </div>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">Use your own savings and skip eligibility paperwork, income limits, resale limits, or second-loan terms.</p>
-            <div className="mt-3 grid gap-1">
-              {["Find the house", "Bring your own funds"].map((step, index) => (
-                <div key={step} className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[0.65rem] font-black text-secondary-foreground">{index + 1}</span>
-                  {step}
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 rounded-3xl bg-white/80 p-3">
-              <div className="rounded-2xl bg-white/75 p-3">
-                <div className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">
-                  <span>Total cash to close</span>
-                  <span>100%</span>
-                </div>
-                <div className="mt-3 overflow-hidden rounded-2xl border bg-muted shadow-inner">
-                  <div className="flex h-16 text-center text-xs font-black leading-none">
-                    <div className="flex w-full flex-col items-center justify-center bg-secondary px-2 text-secondary-foreground">
-                      <span>You part</span>
-                      <span className="mt-1 text-[0.65rem] uppercase tracking-[0.12em] opacity-85">your savings</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-3 rounded-xl bg-secondary/70 p-2 text-xs font-semibold text-secondary-foreground">
-                  <span className="font-black">You part:</span> your savings cover the down payment and closing costs without program help.
-                </div>
-              </div>
-            </div>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl bg-primary/10 p-3">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Pros</p>
-                <ul className="mt-2 space-y-1 text-sm leading-5 text-muted-foreground">
-                  <li>• No program application or waiting list</li>
-                  <li>• No resale restrictions or extra program rules</li>
-                  <li>• Simpler lender and offer process</li>
-                </ul>
-              </div>
-              <div className="rounded-2xl bg-muted/70 p-3">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Cons</p>
-                <ul className="mt-2 space-y-1 text-sm leading-5 text-muted-foreground">
-                  <li>• Requires more cash upfront</li>
-                  <li>• May take longer to save enough</li>
-                  <li>• Does not reduce the purchase price</li>
-                </ul>
-              </div>
-            </div>
-            <div className="mt-3 rounded-2xl bg-primary/10 p-3 text-sm leading-5 text-muted-foreground">
-              <span className="font-bold text-primary">Best when:</span> you have enough cash saved or want to compare the home without assistance first.
-            </div>
+            <span className={`mt-1 h-4 w-4 shrink-0 rounded-full border-2 ${selectedPath === "dpa" ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
           </div>
-        </button>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">A grant or second loan covers part of your upfront cash on a regular home.</p>
+
+          <div className="mt-3 rounded-2xl bg-white/75 p-3">
+            <div className="flex items-center justify-between gap-3 text-xs font-bold text-muted-foreground">
+              <span>Down payment{hasEstimate ? ` on a ${formatCurrency(homePrice)} home` : ""}</span>
+              {hasEstimate ? <span className="text-foreground">{formatCurrency(downPayment)}</span> : null}
+            </div>
+            <div className="mt-2 flex h-14 overflow-hidden rounded-xl border text-center text-xs font-black leading-none">
+              <div className="flex flex-col items-center justify-center bg-primary px-2 text-primary-foreground" style={{ width: `${dpaHelpPercent}%` }}>
+                <span>{hasEstimate ? formatCurrency(dpaHelp) : "Program"}</span>
+                <span className="mt-1 text-[0.6rem] font-semibold uppercase tracking-[0.12em] opacity-85">program help</span>
+              </div>
+              <div className="flex flex-col items-center justify-center bg-secondary px-2 text-secondary-foreground" style={{ width: `${100 - dpaHelpPercent}%` }}>
+                <span>{hasEstimate ? formatCurrency(dpaYou) : "You"}</span>
+                <span className="mt-1 text-[0.6rem] font-semibold uppercase tracking-[0.12em] opacity-85">your cash</span>
+              </div>
+            </div>
+            {hasEstimate ? (
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                Example: a program might cover about {formatCurrency(dpaHelp)}, leaving roughly {formatCurrency(dpaYou)} in cash.
+              </p>
+            ) : null}
+          </div>
+
+          <ProsCons
+            pros={["Lowers the cash you need upfront", "Some help never has to be repaid"]}
+            cons={["May add a second loan to repay later", "Rules and eligibility vary by program"]}
+          />
+          <p className="mt-3 text-xs leading-5 text-muted-foreground">
+            <span className="font-bold text-primary">Best when</span> the monthly payment works but the upfront cash is short.
+          </p>
+        </div>
+
+        {/* Affordable ownership */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => onChoosePath("affordable")}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onChoosePath("affordable");
+            }
+          }}
+          className={`flex cursor-pointer flex-col rounded-3xl border p-4 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selectedPath === "affordable" ? "border-primary bg-primary/10 shadow-glow" : "bg-white/75"}`}
+          aria-pressed={selectedPath === "affordable"}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Affordable ownership</p>
+              <h3 className="mt-1 text-lg font-black tracking-tight">Buy at a lower price</h3>
+            </div>
+            <span className={`mt-1 h-4 w-4 shrink-0 rounded-full border-2 ${selectedPath === "affordable" ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">You buy a home for less than the market price, in exchange for income limits and resale rules.</p>
+
+          <div className="mt-3 rounded-2xl bg-white/75 p-3">
+            <div className="flex items-center justify-between gap-3 text-xs font-bold text-muted-foreground">
+              <span>Market price{hasEstimate ? " vs. program price" : ""}</span>
+              {hasEstimate ? <span className="text-foreground">{formatCurrency(marketPrice)}</span> : null}
+            </div>
+            <div className="mt-2 flex h-14 overflow-hidden rounded-xl border text-center text-xs font-black leading-none">
+              <div className="flex flex-col items-center justify-center bg-secondary px-2 text-secondary-foreground" style={{ width: `${100 - affReductionPercent}%` }}>
+                <span>{hasEstimate ? formatCurrency(affPrice) : "You pay"}</span>
+                <span className="mt-1 text-[0.6rem] font-semibold uppercase tracking-[0.12em] opacity-85">you pay</span>
+              </div>
+              <div className="flex flex-col items-center justify-center bg-primary px-2 text-primary-foreground" style={{ width: `${affReductionPercent}%` }}>
+                <span>{hasEstimate ? `-${formatCurrency(affReduction)}` : "Lower"}</span>
+                <span className="mt-1 text-[0.6rem] font-semibold uppercase tracking-[0.12em] opacity-85">program lowers price</span>
+              </div>
+            </div>
+            {hasEstimate ? (
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                Example: a {formatCurrency(marketPrice)} home offered around {formatCurrency(affPrice)}.
+              </p>
+            ) : null}
+          </div>
+
+          <ProsCons
+            pros={["Lower purchase price", "Lower monthly payment"]}
+            cons={["Fewer homes available", "Resale price is usually capped"]}
+          />
+          <p className="mt-3 text-xs leading-5 text-muted-foreground">
+            <span className="font-bold text-primary">Best when</span> the home price is the main barrier.
+          </p>
+        </div>
+
+        {/* No assistance */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={onChooseNone}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onChooseNone();
+            }
+          }}
+          className={`flex cursor-pointer flex-col rounded-3xl border p-4 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selectedPath === "none" ? "border-primary bg-primary/10 shadow-glow" : "bg-white/75"}`}
+          aria-pressed={selectedPath === "none"}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">No assistance</p>
+              <h3 className="mt-1 text-lg font-black tracking-tight">Keep the plan simple</h3>
+            </div>
+            <span className={`mt-1 h-4 w-4 shrink-0 rounded-full border-2 ${selectedPath === "none" ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            Use your own savings{hasEstimate ? ` — about ${formatCurrency(Math.round(result.savingsTarget))} to close` : ""} — no program paperwork or rules.
+          </p>
+
+          <ProsCons
+            pros={["No applications or waiting lists", "Simpler, faster buying process"]}
+            cons={["Needs more cash upfront", "Doesn't lower the price"]}
+          />
+          <p className="mt-3 text-xs leading-5 text-muted-foreground">
+            <span className="font-bold text-primary">Best when</span> you already have enough saved.
+          </p>
+        </div>
       </div>
     </div>
   );

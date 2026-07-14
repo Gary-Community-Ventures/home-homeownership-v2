@@ -12,11 +12,14 @@ export function AssistanceQuestionPage({
   toggleAffordableProgram,
   AssistancePathChoice,
   DownPaymentAssistanceList,
+  formatCurrency,
 }: any) {
   if (!showAssistanceProgramPicker) {
     return (
       <div className="space-y-4">
         <AssistancePathChoice
+          result={result}
+          formatCurrency={formatCurrency}
           selectedPath={assistanceSelectionMode === "choose" ? null : assistanceSelectionMode}
           onChoosePath={(path: "dpa" | "affordable") => {
             setAssistanceSelectionMode(path);
