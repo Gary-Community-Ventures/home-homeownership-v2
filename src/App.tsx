@@ -1262,12 +1262,12 @@ function getCreditScoreOption(score: number) {
 }
 
 function getCreditScoreMilestone(score: number) {
-  if (score < 620) return "620+ to reach many assistance-program minimums";
-  if (score < 660) return "660+ to move out of the highest-risk pricing band";
-  if (score < 700) return "700+ to strengthen conventional loan options";
-  if (score < 740) return "740+ where many lenders reserve stronger rate pricing";
-  if (score < 800) return "800+ for the strongest modeled credit tier";
-  return "Maintain this tier by keeping balances low and payments on time";
+  if (score < 620) return "Reach 620 to qualify for many down payment help programs.";
+  if (score < 660) return "Reach 660 to start getting better interest rates.";
+  if (score < 700) return "Reach 700 to open up more loan options.";
+  if (score < 740) return "Reach 740 for some of the best rates lenders offer.";
+  if (score < 800) return "Reach 800 to be in the top credit range.";
+  return "Great score. Keep paying on time and keeping balances low.";
 }
 const baseMonthlyRentByBedrooms: Record<number, number> = {
   1: 1450,
@@ -2473,10 +2473,10 @@ function CreditScoreExplanation({
   return (
     <div className="space-y-3 rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
       <div>
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Credit score explainer</p>
-        <h3 className="mt-1 text-lg font-black tracking-tight">Why this score matters</h3>
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Credit score</p>
+        <h3 className="mt-1 text-lg font-black tracking-tight">Why your score matters</h3>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Your score affects two things at once: the <span className="font-semibold text-foreground">mortgage rate</span> a lender offers — a higher score usually means a lower rate and smaller monthly payment — and your <span className="font-semibold text-foreground">eligibility for down payment assistance</span>, since many Colorado DPA programs require a minimum score (often around 620).
+          Your credit score changes two things. First, your <span className="font-semibold text-foreground">interest rate</span>: a higher score usually means a lower rate, which lowers your monthly payment. Second, the <span className="font-semibold text-foreground">help you can get with the down payment</span>: many Colorado programs ask for a score of about 620 or higher.
         </p>
       </div>
 
@@ -2502,23 +2502,23 @@ function CreditScoreExplanation({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-2xl bg-white/75 p-3">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Next useful milestone</p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Your next goal</p>
           <p className="mt-1 text-sm font-semibold leading-5">{milestone}</p>
         </div>
         <div className="rounded-2xl bg-white/75 p-3">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Modeled rate impact</p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Your estimated rate</p>
           <p className="mt-1 text-sm font-semibold leading-5">
-            This tier is modeled at {(result.mortgageInterestRate * 100).toFixed(2)}%; the readiness bar shifts through the estimated monthly payment.
+            About {(result.mortgageInterestRate * 100).toFixed(2)}% at this score. A higher score lowers the rate, which lowers your monthly payment.
           </p>
         </div>
       </div>
 
       <div className="rounded-2xl bg-white/75 p-3">
-        <p className="font-black tracking-tight">How to improve the modeled result</p>
+        <p className="font-black tracking-tight">How to raise your score</p>
         <ul className="mt-2 space-y-1.5 text-sm leading-5 text-muted-foreground">
-          <li>• Keep every payment on time while preparing for pre-approval.</li>
-          <li>• Pay down revolving balances before applying, especially cards near their limits.</li>
-          <li>• Avoid opening new debt or financing large purchases until after closing.</li>
+          <li>• Pay every bill on time.</li>
+          <li>• Pay down credit cards, especially ones near their limit.</li>
+          <li>• Hold off on new loans or credit cards until after you buy.</li>
         </ul>
       </div>
     </div>
