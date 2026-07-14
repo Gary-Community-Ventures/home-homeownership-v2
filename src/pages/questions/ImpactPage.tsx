@@ -140,6 +140,7 @@ export function ImpactPage({
   getLocationsLabel,
   CreditScoreExplanation,
   HouseSizeSvg,
+  updateAnswer,
 }: {
   currentQuestion: any;
   answerValue: any;
@@ -153,6 +154,7 @@ export function ImpactPage({
   getLocationsLabel: (locations: string[]) => string;
   CreditScoreExplanation: React.ComponentType<any>;
   HouseSizeSvg: React.ComponentType<{ bedrooms: number; squareFeet: number; compact?: boolean }>;
+  updateAnswer: (value: string | number | string[]) => void;
 }) {
   const [openBedroomModal, setOpenBedroomModal] = useState<"monthly" | "downPayment" | null>(null);
   const isBedroomImpact = currentQuestion.key === "bedrooms";
@@ -252,7 +254,7 @@ export function ImpactPage({
         </div>
       ) : null}
 
-      {currentQuestion.key === "creditScore" ? <CreditScoreExplanation answers={answers} result={result} /> : null}
+      {currentQuestion.key === "creditScore" ? <CreditScoreExplanation answers={answers} result={result} updateAnswer={updateAnswer} /> : null}
 
       {currentQuestion.key === "income" ? (
         <IncomeImpactVisualization answers={answers} result={result} formatCurrency={formatCurrency} />

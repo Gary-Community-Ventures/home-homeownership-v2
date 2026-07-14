@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, ExternalLink, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Slider } from "@/components/ui/slider";
 import { HouseSizeSvg, WalkingPersonSvg } from "@/components/home/HomeVisuals";
 import { ContactPickerPage as ContactPickerPageView } from "@/pages/ContactPickerPage";
 import { QuestionFlowPage } from "@/pages/QuestionFlowPage";
@@ -2457,10 +2458,17 @@ function AffordableHomeownershipProgramList({ locations, selectedProgramIds, onT
   );
 }
 
-function CreditScoreExplanation({ answers, result }: { answers: Answers; result: ReturnType<typeof calculateScore> }) {
+function CreditScoreExplanation({
+  answers,
+  result,
+  updateAnswer,
+}: {
+  answers: Answers;
+  result: ReturnType<typeof calculateScore>;
+  updateAnswer?: (value: string | number | string[]) => void;
+}) {
   const currentBand = getCreditScoreOption(answers.creditScore);
   const milestone = getCreditScoreMilestone(answers.creditScore);
-  const scorePosition = Math.max(0, Math.min(100, ((answers.creditScore - 560) / (850 - 560)) * 100));
 
   return (
     <div className="space-y-3 rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
@@ -2473,15 +2481,21 @@ function CreditScoreExplanation({ answers, result }: { answers: Answers; result:
       </div>
 
       <div className="rounded-2xl bg-white/75 p-3">
-        <div className="mb-2 flex items-center justify-between gap-3 text-sm font-bold">
-          <span>{currentBand.range}</span>
+        <div className="mb-3 flex items-center justify-between gap-3 text-sm font-bold">
+          <span>Score: {answers.creditScore}</span>
           <span className="text-primary">{currentBand.label}</span>
         </div>
-        <div className="relative h-4 rounded-full bg-gradient-to-r from-primary/25 via-primary/60 to-primary">
-          <div className="absolute top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-primary shadow-lg" style={{ left: `${scorePosition}%` }} />
-        </div>
+        <Slider
+          min={560}
+          max={850}
+          step={5}
+          value={[answers.creditScore]}
+          onValueChange={([value]) => updateAnswer?.(value)}
+          aria-label="Adjust your estimated credit score"
+        />
         <div className="mt-2 flex justify-between text-xs font-semibold text-muted-foreground">
           <span>560</span>
+          <span className="text-primary">Drag to explore</span>
           <span>850</span>
         </div>
       </div>
