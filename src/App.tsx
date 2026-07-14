@@ -7,6 +7,7 @@ import { ContactPickerPage as ContactPickerPageView } from "@/pages/ContactPicke
 import { QuestionFlowPage } from "@/pages/QuestionFlowPage";
 import { SummaryNextStepsPage } from "@/pages/SummaryNextStepsPage";
 import { WhatThisIsPage as WhatThisIsPageView } from "@/pages/WhatThisIsPage";
+import { coloradoZipToCounty } from "@/lib/coloradoZipCounty";
 
 type Answers = {
   location: string[];
@@ -655,7 +656,7 @@ const questions: Question[] = [
     key: "location",
     eyebrow: "Colorado market",
     title: "Where are you considering buying?",
-    description: "Start typing a Colorado neighborhood, city, or county.",
+    description: "Start typing a Colorado neighborhood, city, county, or zip code.",
     type: "location",
   },
   {
@@ -2588,18 +2589,35 @@ function App() {
   const selectedLender = getContactById(lenders, selectedLenderId);
   const selectedRealtor = getContactById(realtors, selectedRealtorId);
   const filteredLocations = useMemo(() => {
-    const query = locationSearch.trim().toLowerCase();
-    const terms = query.split(/\s+/).filter(Boolean);
-    const matches = terms.length
-      ? coloradoLocations.filter((locationOption) => terms.every((term) => locationOption.name.toLowerCase().includes(term)))
-      : coloradoLocations;
+    const trimmed = locationSearch.trim();
+    const query = trimmed.toLowerCase();
+    const isZipQuery = /^\d{3,5}$/.test(trimmed);
+
+    let matches: { name: string; multiplier: number }[];
+    if (isZipQuery) {
+      const matchedCounties = Array.from(
+        new Set(
+          Object.entries(coloradoZipToCounty)
+            .filter(([zip]) => zip.startsWith(trimmed))
+            .map(([, county]) => county),
+        ),
+      );
+      matches = matchedCounties.length
+        ? coloradoLocations.filter((locationOption) => matchedCounties.some((county) => locationOption.name.includes(county)))
+        : [];
+    } else {
+      const terms = query.split(/\s+/).filter(Boolean);
+      matches = terms.length
+        ? coloradoLocations.filter((locationOption) => terms.every((term) => locationOption.name.toLowerCase().includes(term)))
+        : coloradoLocations;
+    }
 
     return matches
       .sort((first, second) => {
         const firstName = first.name.toLowerCase();
         const secondName = second.name.toLowerCase();
-        const firstStartsWithQuery = query.length > 0 && firstName.startsWith(query);
-        const secondStartsWithQuery = query.length > 0 && secondName.startsWith(query);
+        const firstStartsWithQuery = !isZipQuery && query.length > 0 && firstName.startsWith(query);
+        const secondStartsWithQuery = !isZipQuery && query.length > 0 && secondName.startsWith(query);
 
         if (firstStartsWithQuery !== secondStartsWithQuery) return firstStartsWithQuery ? -1 : 1;
         return first.name.localeCompare(second.name);
