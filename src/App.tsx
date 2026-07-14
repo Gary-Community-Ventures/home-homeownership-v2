@@ -2506,7 +2506,7 @@ function CreditScoreExplanation({
           <p className="mt-1 text-sm font-semibold leading-5">{milestone}</p>
         </div>
         <div className="rounded-2xl bg-white/75 p-3">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Your estimated rate</p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Your estimated interest rate</p>
           <p className="mt-1 text-sm font-semibold leading-5">
             About {(result.mortgageInterestRate * 100).toFixed(2)}% at this score. A higher score lowers the rate, which lowers your monthly payment.
           </p>
