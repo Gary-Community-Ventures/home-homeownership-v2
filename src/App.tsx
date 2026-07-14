@@ -2227,10 +2227,12 @@ function DownPaymentAssistanceList({
     const { estimatedAssistance, repaymentProfile } = getAssistanceFit(program, result.estimatedPrice, targetDownPayment);
     const requirements = getProgramRequirements(program);
     const repaymentClassName = repaymentProfile.tone === "best" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground";
-    // Match the readiness model's cash gap: down payment left after help, plus closing costs, minus savings.
+    // Match the readiness model's cash gap exactly (max(0, savingsTarget - savings)): down payment left
+    // after help, plus closing costs, minus savings. Kept unrounded so formatCurrency rounds once, the
+    // same way calculateScore's cashNeededAfterAssistance is displayed.
     const savings = Math.max(0, Number(result.savings) || 0);
-    const closingCosts = Math.max(0, Math.round(result.savingsDeductions ?? 0));
-    const downPaymentAfterHelp = Math.max(0, Math.round(targetDownPayment - estimatedAssistance));
+    const closingCosts = Math.max(0, result.savingsDeductions ?? 0);
+    const downPaymentAfterHelp = Math.max(0, targetDownPayment - estimatedAssistance);
     const cashToClose = downPaymentAfterHelp + closingCosts;
     const savingsApplied = Math.min(savings, cashToClose);
     const cashStillNeeded = Math.max(0, cashToClose - savings);
