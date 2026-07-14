@@ -1,3 +1,5 @@
+import { ExternalLink } from "lucide-react";
+
 export function CreditScoreQuestionPage({ answerValue, creditScoreOptions, updateAnswer }: any) {
   return (
     <div className="space-y-3">
@@ -25,18 +27,17 @@ export function CreditScoreQuestionPage({ answerValue, creditScoreOptions, updat
         })}
       </div>
 
-      <p className="text-xs leading-5 text-muted-foreground">
-        Not sure of your score?{" "}
-        <a
-          href="https://www.creditkarma.com/"
-          target="_blank"
-          rel="noreferrer"
-          className="text-muted-foreground underline underline-offset-2 transition hover:text-foreground"
-        >
-          Credit Karma
-        </a>{" "}
-        gives a free estimated score with no hard inquiry (no impact on your credit).
-      </p>
+      <a
+        href="https://www.creditkarma.com/"
+        target="_blank"
+        rel="noreferrer"
+        className="flex items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm leading-6 transition hover:border-primary/40 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span className="text-muted-foreground">
+          Not sure of your score? Get a <span className="font-bold text-primary">free estimate from Credit Karma</span> — no hard inquiry, no impact on your credit.
+        </span>
+        <ExternalLink className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+      </a>
     </div>
   );
 }
