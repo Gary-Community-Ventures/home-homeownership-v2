@@ -2588,6 +2588,20 @@ function App() {
   const readinessTrailWidth = `${Math.abs(readinessMeterScore - baselineReadinessMeterScore)}%`;
   const selectedLender = getContactById(lenders, selectedLenderId);
   const selectedRealtor = getContactById(realtors, selectedRealtorId);
+  const savingsEstimateReady = (result.estimatedPrice ?? 0) > 0;
+  const savingsGap = Math.max(0, Math.round(result.cashNeededAfterAssistance ?? 0));
+  const savingsUpfrontTarget = Math.max(0, Math.round(result.savingsTarget ?? 0));
+  const savingsCovered = savingsEstimateReady && savingsGap <= 0;
+  const savingsHeadline = !savingsEstimateReady
+    ? currentQuestion.title
+    : savingsCovered
+      ? "You've saved enough to buy"
+      : `About ${formatCurrency(savingsGap)} more to buy`;
+  const savingsSubhead = !savingsEstimateReady
+    ? currentQuestion.description
+    : savingsCovered
+      ? `Your savings cover the estimated ${formatCurrency(savingsUpfrontTarget)} needed up front — a 3.5% down payment plus closing costs and a small cushion.`
+      : `That's the remaining cash to buy, part of the estimated ${formatCurrency(savingsUpfrontTarget)} needed up front for a 3.5% down payment plus closing costs and a small cushion.`;
   const filteredLocations = useMemo(() => {
     const trimmed = locationSearch.trim();
     const query = trimmed.toLowerCase();
@@ -3061,10 +3075,10 @@ function App() {
             {!showIntro && !showExplanation ? (
               <>
                 <CardTitle className="text-2xl leading-tight sm:text-3xl">
-                  {contactPicker ? `${contactPicker === "lender" ? "Lender" : "Realtor"} options to contact` : showSummary ? "Summary and next steps" : showExplanation ? "What that means" : showAssistanceProgramPicker ? "Choose a specific program" : currentQuestion.title}
+                  {contactPicker ? `${contactPicker === "lender" ? "Lender" : "Realtor"} options to contact` : showSummary ? "Summary and next steps" : showExplanation ? "What that means" : showAssistanceProgramPicker ? "Choose a specific program" : currentQuestion.key === "savings" ? savingsHeadline : currentQuestion.title}
                 </CardTitle>
                 <CardDescription className="text-sm leading-6">
-                  {contactPicker ? "Use this list to compare contacts and decide who to follow up with." : showSummary ? "Review your choices, then connect with a lender and realtor to verify the plan." : showExplanation ? "Here is the simple takeaway from your last answer, plus a few resources to explore next." : showAssistanceProgramPicker ? "Now pick the program you want to model for this path." : currentQuestion.description}
+                  {contactPicker ? "Use this list to compare contacts and decide who to follow up with." : showSummary ? "Review your choices, then connect with a lender and realtor to verify the plan." : showExplanation ? "Here is the simple takeaway from your last answer, plus a few resources to explore next." : showAssistanceProgramPicker ? "Now pick the program you want to model for this path." : currentQuestion.key === "savings" ? savingsSubhead : currentQuestion.description}
                 </CardDescription>
               </>
             ) : null}
