@@ -1792,7 +1792,7 @@ function explainImpact(question: Question, answers: Answers, result: ReturnType<
     explanation: "A stronger score usually helps you qualify for better rates. A lower rate can reduce the monthly payment and make the same home easier to afford.",
   };
   if (answers.creditScore < 660) return {
-    headline: "Credit may be raising the payment",
+    headline: "This credit score may be raising the payment",
     explanation: "This score may lead to a higher interest rate or fewer loan options. Improving it could lower the payment and make approval easier.",
   };
   return {
