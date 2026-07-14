@@ -8,6 +8,15 @@ function getBedroomsLabel(bedrooms: number) {
   return `${bedrooms} bedroom${bedrooms === 1 ? "" : "s"}`;
 }
 
+// Bold dollar amounts and percentages inside an explanatory sentence.
+function emphasizeAmounts(text: string) {
+  return text.split(/(\$[\d,]+(?:\.\d+)?|\d+(?:\.\d+)?%)/g).map((part, index) =>
+    /^(?:\$[\d,]+(?:\.\d+)?|\d+(?:\.\d+)?%)$/.test(part)
+      ? <strong key={index} className="font-bold text-foreground">{part}</strong>
+      : <span key={index}>{part}</span>,
+  );
+}
+
 function IncomeImpactVisualization({ answers, result, formatCurrency }: { answers: any; result: any; formatCurrency: (value: number) => string }) {
   const annualIncome = Math.max(0, Number(answers.income) || 0);
   const monthlyIncome = annualIncome / 12;
@@ -250,7 +259,7 @@ export function ImpactPage({
       ) : currentQuestion.key !== "income" ? (
         <div className="rounded-3xl border border-primary/15 bg-primary/10 p-4">
           <h3 className="text-xl font-black tracking-tight text-foreground">{impact.headline}</h3>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">{impact.explanation}</p>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">{emphasizeAmounts(impact.explanation)}</p>
         </div>
       ) : null}
 

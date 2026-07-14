@@ -1874,11 +1874,6 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
         description: `This selection estimates ${formatCurrency(result.assistanceAmount)} in help toward a ${formatCurrency(result.targetDownPayment)} down payment for the modeled home size.`,
         url: assistanceProgramLinks[program.id] ?? "https://www.hud.gov/states/colorado/homeownership/buyingprgms",
       },
-      {
-        title: "Verify eligibility",
-        description: "Confirm service area, income limits, first-time buyer rules, credit score requirements, and whether the program can stack with your mortgage before relying on it.",
-        url: assistanceProgramLinks[program.id] ?? "https://www.chfainfo.com/homeownership/down-payment-assistance",
-      },
     ];
   }
 
@@ -2229,9 +2224,16 @@ function DownPaymentAssistanceList({
   const renderProgramCard = (program: AssistanceProgram) => {
     const isSelected = selectedProgramId === program.id;
     const isBestProgram = bestProgramId === program.id;
-    const { estimatedAssistance, estimatedCashNeeded, coverageRate, repaymentProfile } = getAssistanceFit(program, result.estimatedPrice, targetDownPayment);
+    const { estimatedAssistance, repaymentProfile } = getAssistanceFit(program, result.estimatedPrice, targetDownPayment);
     const requirements = getProgramRequirements(program);
     const repaymentClassName = repaymentProfile.tone === "best" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground";
+    // Match the readiness model's cash gap: down payment left after help, plus closing costs, minus savings.
+    const savings = Math.max(0, Number(result.savings) || 0);
+    const closingCosts = Math.max(0, Math.round(result.savingsDeductions ?? 0));
+    const downPaymentAfterHelp = Math.max(0, Math.round(targetDownPayment - estimatedAssistance));
+    const cashToClose = downPaymentAfterHelp + closingCosts;
+    const savingsApplied = Math.min(savings, cashToClose);
+    const cashStillNeeded = Math.max(0, cashToClose - savings);
 
     return (
       <button
@@ -2257,7 +2259,7 @@ function DownPaymentAssistanceList({
           <div className="flex items-end justify-between gap-3">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Cash you'd still need</p>
-              <p className="mt-1 text-3xl font-black tracking-tight text-foreground">{formatCurrency(estimatedCashNeeded)}</p>
+              <p className="mt-1 text-3xl font-black tracking-tight text-foreground">{formatCurrency(cashStillNeeded)}</p>
             </div>
             <div className="text-right text-xs font-semibold leading-5 text-muted-foreground">
               after about<br />
@@ -2266,8 +2268,9 @@ function DownPaymentAssistanceList({
             </div>
           </div>
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 border-t border-primary/15 pt-2 text-xs text-muted-foreground">
-            <span>Down payment: <span className="font-bold text-foreground">{formatCurrency(targetDownPayment)}</span></span>
-            <span>Help covers <span className="font-bold text-foreground">{formatPercent(coverageRate)}</span> of it</span>
+            <span>Down payment after help: <span className="font-bold text-foreground">{formatCurrency(downPaymentAfterHelp)}</span></span>
+            <span>Closing costs: <span className="font-bold text-foreground">{formatCurrency(closingCosts)}</span></span>
+            {savingsApplied > 0 ? <span>Your savings: <span className="font-bold text-foreground">−{formatCurrency(savingsApplied)}</span></span> : null}
           </div>
         </div>
 
