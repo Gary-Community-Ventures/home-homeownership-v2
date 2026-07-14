@@ -7,7 +7,7 @@ import { ContactPickerPage as ContactPickerPageView } from "@/pages/ContactPicke
 import { QuestionFlowPage } from "@/pages/QuestionFlowPage";
 import { SummaryNextStepsPage } from "@/pages/SummaryNextStepsPage";
 import { WhatThisIsPage as WhatThisIsPageView } from "@/pages/WhatThisIsPage";
-import { coloradoZipToCounty } from "@/lib/coloradoZipCounty";
+import { coloradoZipAreas } from "@/lib/coloradoZipAreas";
 
 type Answers = {
   location: string[];
@@ -2595,16 +2595,26 @@ function App() {
 
     let matches: { name: string; multiplier: number }[];
     if (isZipQuery) {
-      const matchedCounties = Array.from(
-        new Set(
-          Object.entries(coloradoZipToCounty)
-            .filter(([zip]) => zip.startsWith(trimmed))
-            .map(([, county]) => county),
-        ),
-      );
-      matches = matchedCounties.length
-        ? coloradoLocations.filter((locationOption) => matchedCounties.some((county) => locationOption.name.includes(county)))
-        : [];
+      const areas = Object.entries(coloradoZipAreas)
+        .filter(([zip]) => zip.startsWith(trimmed))
+        .map(([, area]) => area);
+      const matchedNames = new Set<string>();
+      for (const area of areas) {
+        const city = area.city.toLowerCase();
+        const cityMatches = city
+          ? coloradoLocations.filter((locationOption) => locationOption.name.split(",")[0].trim().toLowerCase() === city)
+          : [];
+        if (cityMatches.length) {
+          // Prefer the entry in this zip's county when a place name spans counties.
+          const inCounty = cityMatches.filter((locationOption) => locationOption.name.includes(area.county));
+          (inCounty.length ? inCounty : cityMatches).forEach((locationOption) => matchedNames.add(locationOption.name));
+        } else {
+          // No specific city in the list (or an unnamed zip); fall back to the county.
+          const countyMatch = coloradoLocations.find((locationOption) => locationOption.name === area.county);
+          if (countyMatch) matchedNames.add(countyMatch.name);
+        }
+      }
+      matches = coloradoLocations.filter((locationOption) => matchedNames.has(locationOption.name));
     } else {
       const terms = query.split(/\s+/).filter(Boolean);
       matches = terms.length

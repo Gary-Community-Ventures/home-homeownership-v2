@@ -168,7 +168,7 @@ export function LocationQuestionPage({
         Add another location
       </button>
       <p className="text-sm leading-6 text-muted-foreground">
-        Choose one or more Colorado neighborhoods, cities, or counties; neighborhood and city options include county names for context. You can also type a zip code to see options in that county.
+        Choose one or more Colorado neighborhoods, cities, or counties; neighborhood and city options include county names for context. You can also type a zip code to jump to its city or town.
       </p>
     </div>
   );
