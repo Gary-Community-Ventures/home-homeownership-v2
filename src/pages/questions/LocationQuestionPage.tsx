@@ -94,7 +94,7 @@ export function LocationQuestionPage({
                   }}
                   onChange={(event) => openSelect(selectIndex, event.target.value)}
                   onKeyDown={(event) => handleSelectKeyDown(event, selectIndex)}
-                  placeholder="Search for a neighborhood, city, or county"
+                  placeholder="Search by neighborhood, city, county, or zip code"
                   className="h-12 bg-white pr-20 text-base"
                 />
                 {selectedLocation || isAddedBlankSelect ? (
@@ -168,7 +168,7 @@ export function LocationQuestionPage({
         Add another location
       </button>
       <p className="text-sm leading-6 text-muted-foreground">
-        Choose one or more Colorado neighborhoods, cities, or counties; neighborhood and city options include county names for context.
+        Choose one or more Colorado neighborhoods, cities, or counties; neighborhood and city options include county names for context. You can also type a zip code to see options in that county.
       </p>
     </div>
   );
