@@ -75,8 +75,8 @@ export function SavingsQuestionPage({ currentQuestion, answerValue, updateAnswer
               <div>
                 <p className="text-sm font-black tracking-tight">Down payment assistance could help close this gap</p>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  Many Colorado programs cover part or all of the down payment. A few steps ahead you can add one and see how much of
-                  the {formatCurrency(gap)} it could cover.
+                  Many Colorado programs cover part or all of the down payment. We'll explore down payment assistance programs in
+                  later steps, where you can add one and see how much of the {formatCurrency(gap)} it could cover.
                 </p>
               </div>
             </div>

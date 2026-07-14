@@ -349,13 +349,13 @@ export function ImpactPage({
               href={resource.url}
               target="_blank"
               rel="noreferrer"
-              className="group rounded-3xl border bg-white/75 p-4 transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="group rounded-2xl border bg-white/60 p-3 transition hover:border-primary/30 hover:bg-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <p className="flex items-start justify-between gap-3 font-black tracking-tight">
+              <p className="flex items-start justify-between gap-3 text-sm font-semibold text-foreground">
                 <span>{resource.title}</span>
-                <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition group-hover:text-primary" aria-hidden="true" />
+                <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/70 transition group-hover:text-primary" aria-hidden="true" />
               </p>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">{resource.description}</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">{resource.description}</p>
             </a>
           ))}
         </div>

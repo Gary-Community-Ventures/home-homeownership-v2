@@ -2463,16 +2463,16 @@ function CreditScoreExplanation({ answers, result }: { answers: Answers; result:
   const scorePosition = Math.max(0, Math.min(100, ((answers.creditScore - 560) / (850 - 560)) * 100));
 
   return (
-    <div className="space-y-4 rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
+    <div className="space-y-3 rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
       <div>
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Credit score explainer</p>
-        <h3 className="mt-1 text-xl font-black tracking-tight">Why this score matters</h3>
+        <h3 className="mt-1 text-lg font-black tracking-tight">Why this score matters</h3>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Lenders use credit score as one signal for mortgage eligibility and rate pricing. A higher score strengthens the buy side because it can lower borrowing costs and keep more down payment programs available.
+          Your score affects two things at once: the <span className="font-semibold text-foreground">mortgage rate</span> a lender offers — a higher score usually means a lower rate and smaller monthly payment — and your <span className="font-semibold text-foreground">eligibility for down payment assistance</span>, since many Colorado DPA programs require a minimum score (often around 620).
         </p>
       </div>
 
-      <div className="rounded-3xl bg-white/75 p-4">
+      <div className="rounded-2xl bg-white/75 p-3">
         <div className="mb-2 flex items-center justify-between gap-3 text-sm font-bold">
           <span>{currentBand.range}</span>
           <span className="text-primary">{currentBand.label}</span>
@@ -2486,21 +2486,22 @@ function CreditScoreExplanation({ answers, result }: { answers: Answers; result:
         </div>
       </div>
 
-      <div className="rounded-3xl bg-white/75 p-4">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Next useful milestone</p>
-        <p className="mt-2 text-sm font-semibold leading-6">{milestone}</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-2xl bg-white/75 p-3">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Next useful milestone</p>
+          <p className="mt-1 text-sm font-semibold leading-5">{milestone}</p>
+        </div>
+        <div className="rounded-2xl bg-white/75 p-3">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Modeled rate impact</p>
+          <p className="mt-1 text-sm font-semibold leading-5">
+            This tier is modeled at {(result.mortgageInterestRate * 100).toFixed(2)}%; the readiness bar shifts through the estimated monthly payment.
+          </p>
+        </div>
       </div>
 
-      <div className="rounded-3xl bg-white/75 p-4">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Modeled rate impact</p>
-        <p className="mt-2 text-sm font-semibold leading-6">
-          This tier is modeled at {(result.mortgageInterestRate * 100).toFixed(2)}%, so the readiness bar changes only through the estimated monthly payment.
-        </p>
-      </div>
-
-      <div className="rounded-3xl bg-white/75 p-4">
+      <div className="rounded-2xl bg-white/75 p-3">
         <p className="font-black tracking-tight">How to improve the modeled result</p>
-        <ul className="mt-2 space-y-2 text-sm leading-6 text-muted-foreground">
+        <ul className="mt-2 space-y-1.5 text-sm leading-5 text-muted-foreground">
           <li>• Keep every payment on time while preparing for pre-approval.</li>
           <li>• Pay down revolving balances before applying, especially cards near their limits.</li>
           <li>• Avoid opening new debt or financing large purchases until after closing.</li>
