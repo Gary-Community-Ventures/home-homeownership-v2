@@ -16,8 +16,11 @@ export function WhatThisIsPage() {
       <div className="grid gap-3 sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:items-center">
         {steps.map((title, index) => (
           <div key={title} className="contents">
-            <div className="rounded-3xl border bg-white/75 p-4 text-center">
-              <p className="font-black tracking-tight">{title}</p>
+            <div className="flex flex-col items-center gap-3 rounded-3xl border border-primary/20 bg-white/75 p-5 text-center shadow-sm">
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-2xl font-black text-primary-foreground shadow-glow">
+                {index + 1}
+              </span>
+              <p className="text-lg font-black leading-tight tracking-tight">{title}</p>
             </div>
             {index < 2 ? (
               <div className="flex justify-center text-primary" aria-hidden="true">
