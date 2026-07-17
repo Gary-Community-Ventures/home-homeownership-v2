@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, ExternalLink, Minus, RotateCcw } from "lucide-react";
+import { createPortal } from "react-dom";
+import { ArrowLeft, ArrowRight, Check, ExternalLink, Minus, Printer, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -105,6 +106,7 @@ const ELIGIBILITY_STORAGE_KEY = "home-buying-prototype-eligibility";
 const SELECTED_LENDER_STORAGE_KEY = "home-buying-prototype-selected-lender";
 const SELECTED_REALTOR_STORAGE_KEY = "home-buying-prototype-selected-realtor";
 const MODELED_LOCATION_STORAGE_KEY = "home-buying-prototype-modeled-location";
+const CONTACT_EMAIL_STORAGE_KEY = "home-buying-prototype-contact-email";
 
 const affordableHomeownershipPrograms: HomeownershipProgram[] = [
   {
@@ -2559,6 +2561,9 @@ function App() {
   const [showSummary, setShowSummary] = useState(initialRoute.showSummary);
   const [contactPicker, setContactPicker] = useState<"lender" | "realtor" | null>(initialRoute.contactPicker);
   const [returnToSummary, setReturnToSummary] = useState(initialRoute.returnToSummary);
+  const [showCompletion, setShowCompletion] = useState(false);
+  const [contactEmail, setContactEmail] = useState("");
+  const [emailSubmitted, setEmailSubmitted] = useState(false);
   const [assistanceSelectionMode, setAssistanceSelectionMode] = useState<AssistanceSelectionMode>(() => {
     if (answers.affordablePrograms.length) return "affordable";
     if (answers.assistanceProgram !== "none") return "dpa";
@@ -2588,7 +2593,6 @@ function App() {
   );
   const baselineResult = useMemo(() => calculateScore(baselineAnswers, baselineAnsweredKeys, currentQuestion.key === "location" ? null : modeledLocationOverride), [baselineAnswers, baselineAnsweredKeys, currentQuestion.key, modeledLocationOverride]);
   const answerValue = answers[currentQuestion.key];
-  const isLastPage = showSummary;
   const totalPages = questions.length * 2 + 2;
   const pageIndex = showIntro
     ? 1
@@ -2995,7 +2999,10 @@ function App() {
 
     if (contactPicker) return;
 
-    if (showSummary) return;
+    if (showSummary) {
+      setShowCompletion(true);
+      return;
+    }
 
     if (!showExplanation) {
       if (currentQuestion.key === "assistanceProgram") {
@@ -3194,7 +3201,7 @@ function App() {
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
-              <Button onClick={goNext} disabled={isLastPage || (isAssistanceChoicePage && !assistancePathSelected)}>
+              <Button onClick={goNext} disabled={isAssistanceChoicePage && !assistancePathSelected}>
                 {nextButtonLabel}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -3202,6 +3209,72 @@ function App() {
           </CardFooter>
         </Card>
       </div>
+
+      {showCompletion
+        ? createPortal(
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-3" role="dialog" aria-modal="true" aria-labelledby="completion-title">
+              <button type="button" className="absolute inset-0 cursor-default" onClick={() => setShowCompletion(false)} aria-label="Close" />
+              <div className="relative w-full max-w-md rounded-3xl border bg-white p-5 shadow-2xl">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">You're all set</p>
+                    <h3 id="completion-title" className="mt-1 text-xl font-black tracking-tight">Save your plan</h3>
+                  </div>
+                  <button type="button" onClick={() => setShowCompletion(false)} className="shrink-0 rounded-full p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Close">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">Print or save your readiness summary to bring to a lender or realtor.</p>
+                <button
+                  type="button"
+                  onClick={() => { setShowCompletion(false); window.setTimeout(() => window.print(), 150); }}
+                  className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print or save summary
+                </button>
+
+                <div className="mt-4 border-t border-border/70 pt-4">
+                  {emailSubmitted ? (
+                    <p className="inline-flex items-start gap-2 text-sm font-semibold leading-6 text-primary">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span>Thanks — we&apos;ll reach out to {contactEmail}.</span>
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-sm font-black tracking-tight">Want someone to reach out?</p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">Add your email if you'd like help with next steps. Optional.</p>
+                      <form
+                        className="mt-2 flex gap-2"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          const email = contactEmail.trim();
+                          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+                          window.localStorage.setItem(CONTACT_EMAIL_STORAGE_KEY, email);
+                          setEmailSubmitted(true);
+                        }}
+                      >
+                        <input
+                          type="email"
+                          inputMode="email"
+                          value={contactEmail}
+                          onChange={(event) => setContactEmail(event.target.value)}
+                          placeholder="you@example.com"
+                          aria-label="Your email"
+                          className="h-10 flex-1 rounded-full border bg-white px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        />
+                        <button type="submit" className="shrink-0 rounded-full bg-secondary px-4 py-2 text-sm font-bold text-secondary-foreground transition hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                          Send
+                        </button>
+                      </form>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </main>
   );
 }
