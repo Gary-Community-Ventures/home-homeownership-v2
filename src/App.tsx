@@ -1,12 +1,15 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, ExternalLink, RotateCcw } from "lucide-react";
+import { createPortal } from "react-dom";
+import { ArrowLeft, ArrowRight, Check, ExternalLink, Minus, Printer, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Slider } from "@/components/ui/slider";
 import { HouseSizeSvg, WalkingPersonSvg } from "@/components/home/HomeVisuals";
 import { ContactPickerPage as ContactPickerPageView } from "@/pages/ContactPickerPage";
 import { QuestionFlowPage } from "@/pages/QuestionFlowPage";
 import { SummaryNextStepsPage } from "@/pages/SummaryNextStepsPage";
 import { WhatThisIsPage as WhatThisIsPageView } from "@/pages/WhatThisIsPage";
+import { coloradoZipAreas } from "@/lib/coloradoZipAreas";
 
 type Answers = {
   location: string[];
@@ -103,6 +106,7 @@ const ELIGIBILITY_STORAGE_KEY = "home-buying-prototype-eligibility";
 const SELECTED_LENDER_STORAGE_KEY = "home-buying-prototype-selected-lender";
 const SELECTED_REALTOR_STORAGE_KEY = "home-buying-prototype-selected-realtor";
 const MODELED_LOCATION_STORAGE_KEY = "home-buying-prototype-modeled-location";
+const CONTACT_EMAIL_STORAGE_KEY = "home-buying-prototype-contact-email";
 
 const affordableHomeownershipPrograms: HomeownershipProgram[] = [
   {
@@ -225,7 +229,7 @@ const eligibilityQuestions: { key: keyof EligibilityAnswers; label: string; desc
   { key: "firstGenerationBuyer", label: "First-generation buyer", description: "Your parents/guardians have not owned a home, depending on program rules." },
   { key: "disabilityEligible", label: "Disability eligibility", description: "You or a qualifying household member has disability documentation." },
   { key: "veteranEligible", label: "Veteran eligibility", description: "You may qualify for veteran-specific exceptions or programs." },
-  { key: "localRequirement", label: "Local area/workforce fit", description: "You live, work, or are buying in a required city, county, or community." },
+  { key: "localRequirement", label: "Local area or essential worker", description: "A few programs are limited to specific buyers. Some are only for people who live or work in a required area, like a county's workforce-housing program. Others are only for essential workers — pre-K–12 teachers, police officers, firefighters, or EMTs (for example, Good Neighbor Next Door). Answer yes if any of these describe you." },
 ];
 
 const downPaymentAssistancePrograms: AssistanceProgram[] = [
@@ -655,14 +659,14 @@ const questions: Question[] = [
     key: "location",
     eyebrow: "Colorado market",
     title: "Where are you considering buying?",
-    description: "Start typing a Colorado neighborhood, city, or county.",
+    description: "Start typing a Colorado neighborhood, city, county, or zip code.",
     type: "location",
   },
   {
     key: "bedrooms",
     eyebrow: "Target home",
     title: "How many bedrooms do you need?",
-    description: "Choose the house size you are looking for so the readiness meter can compare the estimated monthly payment and down payment need.",
+    description: "Pick the home size you're looking for.",
     type: "number",
     min: 1,
     max: 8,
@@ -673,7 +677,7 @@ const questions: Question[] = [
     key: "income",
     eyebrow: "Monthly budget",
     title: "What is your household income?",
-    description: "Choose the pay frequency you know best. Income is the strongest early signal because it determines how much payment you can safely carry.",
+    description: "Enter it at whatever pay frequency is easiest.",
     type: "currency",
     min: 30000,
     max: 300000,
@@ -703,7 +707,7 @@ const questions: Question[] = [
     key: "assistanceProgram",
     eyebrow: "Buying help",
     title: "Start with the type of buying help you want",
-    description: "Compare a simple explanation of down payment assistance and affordable ownership before choosing a specific program.",
+    description: "Two paths can help. Pick one to explore.",
     type: "assistance",
   },
 ];
@@ -1260,12 +1264,12 @@ function getCreditScoreOption(score: number) {
 }
 
 function getCreditScoreMilestone(score: number) {
-  if (score < 620) return "620+ to reach many assistance-program minimums";
-  if (score < 660) return "660+ to move out of the highest-risk pricing band";
-  if (score < 700) return "700+ to strengthen conventional loan options";
-  if (score < 740) return "740+ where many lenders reserve stronger rate pricing";
-  if (score < 800) return "800+ for the strongest modeled credit tier";
-  return "Maintain this tier by keeping balances low and payments on time";
+  if (score < 620) return "Reach 620 to qualify for many down payment help programs.";
+  if (score < 660) return "Reach 660 to start getting better interest rates.";
+  if (score < 700) return "Reach 700 to open up more loan options.";
+  if (score < 740) return "Reach 740 for some of the best rates lenders offer.";
+  if (score < 800) return "Reach 800 to be in the top credit range.";
+  return "Great score. Keep paying on time and keeping balances low.";
 }
 const baseMonthlyRentByBedrooms: Record<number, number> = {
   1: 1450,
@@ -1552,7 +1556,7 @@ function programMatchesEligibility(program: AssistanceProgram, eligibility: Elig
   if (eligibility.firstGenerationBuyer === "no" && requirements.includes("first-generation")) return false;
   if (eligibility.disabilityEligible === "no" && (requirements.includes("disability") || requirements.includes("disabled"))) return false;
   if (eligibility.veteranEligible === "no" && requirements.includes("veteran")) return false;
-  if (eligibility.localRequirement === "no" && (requirements.includes("workforce") || requirements.includes("local") || requirements.includes("employee") || requirements.includes("service area") || requirements.includes("city of") || requirements.includes("county purchase") || requirements.includes("county buyer"))) return false;
+  if (eligibility.localRequirement === "no" && (requirements.includes("workforce") || requirements.includes("local") || requirements.includes("employee") || requirements.includes("service area") || requirements.includes("city of") || requirements.includes("county purchase") || requirements.includes("county buyer") || requirements.includes("law enforcement") || requirements.includes("firefighter") || requirements.includes("teacher"))) return false;
 
   return true;
 }
@@ -1790,7 +1794,7 @@ function explainImpact(question: Question, answers: Answers, result: ReturnType<
     explanation: "A stronger score usually helps you qualify for better rates. A lower rate can reduce the monthly payment and make the same home easier to afford.",
   };
   if (answers.creditScore < 660) return {
-    headline: "Credit may be raising the payment",
+    headline: "This credit score may be raising the payment",
     explanation: "This score may lead to a higher interest rate or fewer loan options. Improving it could lower the payment and make approval easier.",
   };
   return {
@@ -1872,11 +1876,6 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
         description: `This selection estimates ${formatCurrency(result.assistanceAmount)} in help toward a ${formatCurrency(result.targetDownPayment)} down payment for the modeled home size.`,
         url: assistanceProgramLinks[program.id] ?? "https://www.hud.gov/states/colorado/homeownership/buyingprgms",
       },
-      {
-        title: "Verify eligibility",
-        description: "Confirm service area, income limits, first-time buyer rules, credit score requirements, and whether the program can stack with your mortgage before relying on it.",
-        url: assistanceProgramLinks[program.id] ?? "https://www.chfainfo.com/homeownership/down-payment-assistance",
-      },
     ];
   }
 
@@ -1941,7 +1940,7 @@ function EligibilityQuestionnaire({ eligibility, onChange }: { eligibility: Elig
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Filter programs</p>
         <h3 className="mt-1 text-xl font-black tracking-tight">Only show programs that fit your answers</h3>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Answer “no” to hide programs with that requirement. Leave “unsure” selected when you want to keep those programs visible until you can verify the rule.
+          Answer “no” to hide programs you don't qualify for. Leave “unsure” to keep them visible.
         </p>
       </div>
 
@@ -1979,226 +1978,209 @@ function EligibilityQuestionnaire({ eligibility, onChange }: { eligibility: Elig
   );
 }
 
+function ProsCons({ pros, cons }: { pros: string[]; cons: string[] }) {
+  return (
+    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+      <div className="rounded-2xl border border-primary/25 bg-primary/5 p-3">
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-primary">Pros</p>
+        <ul className="mt-2 space-y-1.5 text-sm font-medium leading-5 text-foreground">
+          {pros.map((pro) => (
+            <li key={pro} className="flex items-start gap-2">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+              <span>{pro}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="rounded-2xl border border-muted-foreground/20 bg-muted/50 p-3">
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Cons</p>
+        <ul className="mt-2 space-y-1.5 text-sm font-medium leading-5 text-foreground">
+          {cons.map((con) => (
+            <li key={con} className="flex items-start gap-2">
+              <Minus className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <span>{con}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 function AssistancePathChoice({
   selectedPath,
   onChoosePath,
   onChooseNone,
+  result,
+  formatCurrency,
 }: {
   selectedPath: "dpa" | "affordable" | "none" | null;
   onChoosePath: (path: Extract<AssistanceSelectionMode, "dpa" | "affordable">) => void;
   onChooseNone: () => void;
+  result: ReturnType<typeof calculateScore>;
+  formatCurrency: (value: number) => string;
 }) {
-  const paths = [
-    {
-      id: "dpa" as const,
-      eyebrow: "Down payment assistance",
-      title: "Help with the cash you need to close",
-      description: "Grants, forgivable loans, or second mortgages can cover part of your down payment and sometimes closing costs while you buy a regular market-rate home.",
-      visualSteps: ["Pick a regular home", "Program adds cash", "Bring less upfront"],
-      visualLeft: "Down payment",
-      visualRight: "Your cash",
-      pros: ["Can lower upfront cash needed", "Often works with many homes and lenders", "Some options do not need to be repaid"],
-      cons: ["May add a second loan or repayment rules", "Eligibility and lender requirements vary", "Usually does not lower the home price itself"],
-      bestWhen: "you are close on monthly payment but need help covering the upfront down payment or closing cash.",
-      action: "Choose down payment help",
-    },
-    {
-      id: "affordable" as const,
-      eyebrow: "Affordable ownership",
-      title: "A lower-priced home with program rules",
-      description: "Community land trusts, deed-restricted homes, and similar programs can reduce the purchase price or monthly cost in exchange for income limits and resale rules.",
-      visualSteps: ["Find program inventory", "Buy at a lower price", "Follow resale rules"],
-      visualLeft: "Market price",
-      visualRight: "Program price",
-      pros: ["Can make the purchase price meaningfully lower", "May reduce the monthly payment hurdle", "Often designed for long-term community affordability"],
-      cons: ["Inventory can be limited", "Income, location, or household rules may apply", "Resale price and equity growth may be restricted"],
-      bestWhen: "the market-rate price is the biggest barrier and you are comfortable with program inventory and resale rules.",
-      action: "Choose affordable ownership",
-    },
-  ];
+  const round100 = (value: number) => Math.round(value / 100) * 100;
+  const round1k = (value: number) => Math.round(value / 1000) * 1000;
+  const homePrice = Math.max(0, Math.round(result?.estimatedPrice ?? 0));
+  const marketPrice = Math.max(0, Math.round(result?.marketEstimatedPrice ?? homePrice));
+  const downPayment = Math.max(0, Math.round(result?.targetDownPayment ?? 0));
+  const hasEstimate = homePrice > 0 && downPayment > 0;
+
+  // Example split for the down payment assistance visualization.
+  const dpaHelp = round100(downPayment * 0.7);
+  const dpaYou = Math.max(0, downPayment - dpaHelp);
+  const dpaHelpPercent = downPayment > 0 ? Math.round((dpaHelp / downPayment) * 100) : 70;
+
+  // Example price reduction for the affordable ownership visualization.
+  const affReduction = round1k(marketPrice * 0.12);
+  const affPrice = Math.max(0, marketPrice - affReduction);
+  const affReductionPercent = marketPrice > 0 ? Math.round((affReduction / marketPrice) * 100) : 12;
 
   return (
     <div className="space-y-4">
       <div className="grid gap-4">
-        {paths.map((path) => {
-          const isSelected = selectedPath === path.id;
-
-          return (
-            <div
-              key={path.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => onChoosePath(path.id)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  onChoosePath(path.id);
-                }
-              }}
-              className={`flex cursor-pointer flex-col rounded-3xl border p-4 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isSelected ? "border-primary bg-primary/10 shadow-glow" : "bg-white/75"}`}
-              aria-pressed={isSelected}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">{path.eyebrow}</p>
-                  <h3 className="mt-1 text-lg font-black tracking-tight">{path.title}</h3>
-                </div>
-                <span className={`mt-1 h-4 w-4 shrink-0 rounded-full border-2 ${isSelected ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
-              </div>
-
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">{path.description}</p>
-              <div className="mt-3 grid gap-1">
-                {path.visualSteps.map((step, index) => (
-                  <div key={step} className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[0.65rem] font-black text-secondary-foreground">{index + 1}</span>
-                    {step}
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 rounded-3xl bg-white/80 p-3">
-                {path.id === "dpa" ? (
-                  <div className="rounded-2xl bg-white/75 p-3">
-                    <div className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">
-                      <span>Total down payment</span>
-                      <span>100%</span>
-                    </div>
-                    <div className="mt-3 overflow-hidden rounded-2xl border bg-muted shadow-inner">
-                      <div className="flex h-16 text-center text-xs font-black leading-none">
-                        <div className="flex w-[70%] flex-col items-center justify-center bg-primary px-2 text-primary-foreground">
-                          <span>DPA part</span>
-                          <span className="mt-1 text-[0.65rem] uppercase tracking-[0.12em] opacity-85">program help</span>
-                        </div>
-                        <div className="flex w-[30%] flex-col items-center justify-center bg-secondary px-2 text-secondary-foreground">
-                          <span>You part</span>
-                          <span className="mt-1 text-[0.65rem] uppercase tracking-[0.12em] opacity-85">your cash</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-3 grid gap-2 text-xs font-semibold text-muted-foreground sm:grid-cols-2">
-                      <div className="rounded-xl bg-primary/10 p-2">
-                        <span className="font-black text-primary">DPA part:</span> grant or second loan covers some of the down payment.
-                      </div>
-                      <div className="rounded-xl bg-secondary/70 p-2 text-secondary-foreground">
-                        <span className="font-black">You part:</span> the remaining cash you bring to closing.
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl bg-white/75 p-3">
-                    <div className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">
-                      <span>Market home price</span>
-                      <span>100%</span>
-                    </div>
-                    <div className="mt-3 overflow-hidden rounded-2xl border bg-muted shadow-inner">
-                      <div className="flex h-16 text-center text-xs font-black leading-none">
-                        <div className="flex w-[35%] flex-col items-center justify-center bg-primary px-2 text-primary-foreground">
-                          <span>Program part</span>
-                          <span className="mt-1 text-[0.65rem] uppercase tracking-[0.12em] opacity-85">price reduction</span>
-                        </div>
-                        <div className="flex w-[65%] flex-col items-center justify-center bg-secondary px-2 text-secondary-foreground">
-                          <span>You part</span>
-                          <span className="mt-1 text-[0.65rem] uppercase tracking-[0.12em] opacity-85">program price</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-3 grid gap-2 text-xs font-semibold text-muted-foreground sm:grid-cols-2">
-                      <div className="rounded-xl bg-primary/10 p-2">
-                        <span className="font-black text-primary">Program part:</span> the discount, land trust, or restriction that lowers the price.
-                      </div>
-                      <div className="rounded-xl bg-secondary/70 p-2 text-secondary-foreground">
-                        <span className="font-black">You part:</span> the lower program price you qualify to buy.
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-3 grid gap-3">
-                <div className="rounded-2xl bg-primary/10 p-3">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Pros</p>
-                  <ul className="mt-2 space-y-1 text-sm leading-5 text-muted-foreground">
-                    {path.pros.map((pro) => <li key={pro}>• {pro}</li>)}
-                  </ul>
-                </div>
-                <div className="rounded-2xl bg-muted/70 p-3">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Cons</p>
-                  <ul className="mt-2 space-y-1 text-sm leading-5 text-muted-foreground">
-                    {path.cons.map((con) => <li key={con}>• {con}</li>)}
-                  </ul>
-                </div>
-              </div>
-              <div className="mt-3 rounded-2xl bg-primary/10 p-3 text-sm leading-5 text-muted-foreground">
-                <span className="font-bold text-primary">Best when:</span> {path.bestWhen}
-              </div>
-            </div>
-          );
-        })}
-
-        <button
-          type="button"
-          onClick={onChooseNone}
-          className={`rounded-3xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selectedPath === "none" ? "border-primary bg-primary/10 shadow-glow" : "bg-white/75"}`}
+        {/* Down payment assistance */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => onChoosePath("dpa")}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onChoosePath("dpa");
+            }
+          }}
+          className={`flex cursor-pointer flex-col rounded-3xl border p-4 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selectedPath === "dpa" ? "border-primary bg-primary/10 shadow-glow" : "bg-white/75"}`}
+          aria-pressed={selectedPath === "dpa"}
         >
-          <div className="flex h-full flex-col">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">No assistance</p>
-                <h3 className="mt-1 text-lg font-black tracking-tight">Keep the plan simple</h3>
-              </div>
-              <span className={`mt-1 h-4 w-4 shrink-0 rounded-full border-2 ${selectedPath === "none" ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Down payment assistance</p>
+              <h3 className="mt-1 text-lg font-black tracking-tight">Help with the cash to close</h3>
             </div>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">Use your own savings and skip eligibility paperwork, income limits, resale limits, or second-loan terms.</p>
-            <div className="mt-3 grid gap-1">
-              {["Find the house", "Bring your own funds"].map((step, index) => (
-                <div key={step} className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[0.65rem] font-black text-secondary-foreground">{index + 1}</span>
-                  {step}
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 rounded-3xl bg-white/80 p-3">
-              <div className="rounded-2xl bg-white/75 p-3">
-                <div className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">
-                  <span>Total cash to close</span>
-                  <span>100%</span>
-                </div>
-                <div className="mt-3 overflow-hidden rounded-2xl border bg-muted shadow-inner">
-                  <div className="flex h-16 text-center text-xs font-black leading-none">
-                    <div className="flex w-full flex-col items-center justify-center bg-secondary px-2 text-secondary-foreground">
-                      <span>You part</span>
-                      <span className="mt-1 text-[0.65rem] uppercase tracking-[0.12em] opacity-85">your savings</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-3 rounded-xl bg-secondary/70 p-2 text-xs font-semibold text-secondary-foreground">
-                  <span className="font-black">You part:</span> your savings cover the down payment and closing costs without program help.
-                </div>
-              </div>
-            </div>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl bg-primary/10 p-3">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Pros</p>
-                <ul className="mt-2 space-y-1 text-sm leading-5 text-muted-foreground">
-                  <li>• No program application or waiting list</li>
-                  <li>• No resale restrictions or extra program rules</li>
-                  <li>• Simpler lender and offer process</li>
-                </ul>
-              </div>
-              <div className="rounded-2xl bg-muted/70 p-3">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Cons</p>
-                <ul className="mt-2 space-y-1 text-sm leading-5 text-muted-foreground">
-                  <li>• Requires more cash upfront</li>
-                  <li>• May take longer to save enough</li>
-                  <li>• Does not reduce the purchase price</li>
-                </ul>
-              </div>
-            </div>
-            <div className="mt-3 rounded-2xl bg-primary/10 p-3 text-sm leading-5 text-muted-foreground">
-              <span className="font-bold text-primary">Best when:</span> you have enough cash saved or want to compare the home without assistance first.
-            </div>
+            <span className={`mt-1 h-4 w-4 shrink-0 rounded-full border-2 ${selectedPath === "dpa" ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
           </div>
-        </button>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">A grant or second loan covers part of your upfront cash on a regular home.</p>
+
+          <div className="mt-3 rounded-2xl bg-white/75 p-3">
+            <div className="flex items-center justify-between gap-3 text-xs font-bold text-muted-foreground">
+              <span>Down payment{hasEstimate ? ` on a ${formatCurrency(homePrice)} home` : ""}</span>
+              {hasEstimate ? <span className="text-foreground">{formatCurrency(downPayment)}</span> : null}
+            </div>
+            <div className="mt-2 flex h-14 overflow-hidden rounded-xl border text-center text-xs font-black leading-none">
+              <div className="flex flex-col items-center justify-center bg-primary px-2 text-primary-foreground" style={{ width: `${dpaHelpPercent}%` }}>
+                <span>{hasEstimate ? formatCurrency(dpaHelp) : "Program"}</span>
+                <span className="mt-1 text-[0.6rem] font-semibold uppercase tracking-[0.12em] opacity-85">program help</span>
+              </div>
+              <div className="flex flex-col items-center justify-center bg-secondary px-2 text-secondary-foreground" style={{ width: `${100 - dpaHelpPercent}%` }}>
+                <span>{hasEstimate ? formatCurrency(dpaYou) : "You"}</span>
+                <span className="mt-1 text-[0.6rem] font-semibold uppercase tracking-[0.12em] opacity-85">your cash</span>
+              </div>
+            </div>
+            {hasEstimate ? (
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                Example: a program might cover about {formatCurrency(dpaHelp)}, leaving roughly {formatCurrency(dpaYou)} in cash.
+              </p>
+            ) : null}
+          </div>
+
+          <ProsCons
+            pros={["Lowers the cash you need upfront", "Some help never has to be repaid"]}
+            cons={["May add a second loan to repay later", "Rules and eligibility vary by program"]}
+          />
+          <p className="mt-3 text-xs leading-5 text-muted-foreground">
+            <span className="font-bold text-primary">Best when</span> the monthly payment works but the upfront cash is short.
+          </p>
+        </div>
+
+        {/* Affordable ownership */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => onChoosePath("affordable")}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onChoosePath("affordable");
+            }
+          }}
+          className={`flex cursor-pointer flex-col rounded-3xl border p-4 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selectedPath === "affordable" ? "border-primary bg-primary/10 shadow-glow" : "bg-white/75"}`}
+          aria-pressed={selectedPath === "affordable"}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Affordable ownership</p>
+              <h3 className="mt-1 text-lg font-black tracking-tight">Buy at a lower price</h3>
+            </div>
+            <span className={`mt-1 h-4 w-4 shrink-0 rounded-full border-2 ${selectedPath === "affordable" ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">You buy a home for less than the market price, in exchange for income limits and resale rules.</p>
+
+          <div className="mt-3 rounded-2xl bg-white/75 p-3">
+            <div className="flex items-center justify-between gap-3 text-xs font-bold text-muted-foreground">
+              <span>Market price{hasEstimate ? " vs. program price" : ""}</span>
+              {hasEstimate ? <span className="text-foreground">{formatCurrency(marketPrice)}</span> : null}
+            </div>
+            <div className="mt-2 flex h-14 overflow-hidden rounded-xl border text-center text-xs font-black leading-none">
+              <div className="flex flex-col items-center justify-center bg-secondary px-2 text-secondary-foreground" style={{ width: `${100 - affReductionPercent}%` }}>
+                <span>{hasEstimate ? formatCurrency(affPrice) : "You pay"}</span>
+                <span className="mt-1 text-[0.6rem] font-semibold uppercase tracking-[0.12em] opacity-85">you pay</span>
+              </div>
+              <div className="flex flex-col items-center justify-center bg-primary px-2 text-primary-foreground" style={{ width: `${affReductionPercent}%` }}>
+                <span>{hasEstimate ? `-${formatCurrency(affReduction)}` : "Lower"}</span>
+                <span className="mt-1 text-[0.6rem] font-semibold uppercase tracking-[0.12em] opacity-85">program lowers price</span>
+              </div>
+            </div>
+            {hasEstimate ? (
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                Example: a {formatCurrency(marketPrice)} home offered around {formatCurrency(affPrice)}.
+              </p>
+            ) : null}
+          </div>
+
+          <ProsCons
+            pros={["Lower purchase price", "Lower monthly payment"]}
+            cons={["Fewer homes available", "Resale price is usually capped"]}
+          />
+          <p className="mt-3 text-xs leading-5 text-muted-foreground">
+            <span className="font-bold text-primary">Best when</span> the home price is the main barrier.
+          </p>
+        </div>
+
+        {/* No assistance */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={onChooseNone}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onChooseNone();
+            }
+          }}
+          className={`flex cursor-pointer flex-col rounded-3xl border p-4 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selectedPath === "none" ? "border-primary bg-primary/10 shadow-glow" : "bg-white/75"}`}
+          aria-pressed={selectedPath === "none"}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">No assistance</p>
+              <h3 className="mt-1 text-lg font-black tracking-tight">Keep the plan simple</h3>
+            </div>
+            <span className={`mt-1 h-4 w-4 shrink-0 rounded-full border-2 ${selectedPath === "none" ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            Use your own savings{hasEstimate ? ` — about ${formatCurrency(Math.round(result.savingsTarget))} to close` : ""} — no program paperwork or rules.
+          </p>
+
+          <ProsCons
+            pros={["No applications or waiting lists", "Simpler, faster buying process"]}
+            cons={["Needs more cash upfront", "Doesn't lower the price"]}
+          />
+          <p className="mt-3 text-xs leading-5 text-muted-foreground">
+            <span className="font-bold text-primary">Best when</span> you already have enough saved.
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -2235,15 +2217,85 @@ function DownPaymentAssistanceList({
   const filteredPrograms = locationFilteredPrograms
     .filter((program) => programMatchesEligibility(program, eligibility))
     .sort((first, second) => getAssistanceFit(second, result.estimatedPrice, targetDownPayment).score - getAssistanceFit(first, result.estimatedPrice, targetDownPayment).score);
-  const topPrograms = filteredPrograms.slice(0, 3);
-  const remainingPrograms = filteredPrograms.slice(3);
-  const displayedPrograms = [
-    ...topPrograms,
-    ...(showAllPrograms ? remainingPrograms : []),
-  ];
+  const recommendedPrograms = filteredPrograms.slice(0, 2);
+  const otherPrograms = filteredPrograms.slice(2);
   const bestProgramId = filteredPrograms[0]?.id;
   const countyLabel = countyNames.length ? countyNames.join(", ") : "";
-  const hiddenProgramCount = remainingPrograms.length;
+  const hiddenProgramCount = otherPrograms.length;
+
+  const renderProgramCard = (program: AssistanceProgram) => {
+    const isSelected = selectedProgramId === program.id;
+    const isBestProgram = bestProgramId === program.id;
+    const { estimatedAssistance, repaymentProfile } = getAssistanceFit(program, result.estimatedPrice, targetDownPayment);
+    const requirements = getProgramRequirements(program);
+    const repaymentClassName = repaymentProfile.tone === "best" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground";
+    // Match the readiness model's cash gap exactly (max(0, savingsTarget - savings)): down payment left
+    // after help, plus closing costs, minus savings. Kept unrounded so formatCurrency rounds once, the
+    // same way calculateScore's cashNeededAfterAssistance is displayed.
+    const savings = Math.max(0, Number(result.savings) || 0);
+    const closingCosts = Math.max(0, result.savingsDeductions ?? 0);
+    const downPaymentAfterHelp = Math.max(0, targetDownPayment - estimatedAssistance);
+    const cashToClose = downPaymentAfterHelp + closingCosts;
+    const savingsApplied = Math.min(savings, cashToClose);
+    const cashStillNeeded = Math.max(0, cashToClose - savings);
+
+    return (
+      <button
+        key={program.id}
+        type="button"
+        onClick={() => onSelect(program.id)}
+        className={`rounded-3xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+          isSelected ? "border-primary bg-primary/10 shadow-glow" : "bg-white/75"
+        }`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-black tracking-tight">{program.title}</p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{program.bestFor}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-secondary px-3 py-1 text-xs font-black text-secondary-foreground">{program.assistance}</span>
+            <span className={`h-4 w-4 rounded-full border-2 ${isSelected ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
+          </div>
+        </div>
+
+        <div className="mt-3 rounded-2xl border border-primary/20 bg-primary/10 p-3">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Cash you'd still need</p>
+              <p className="mt-1 text-3xl font-black tracking-tight text-foreground">{formatCurrency(cashStillNeeded)}</p>
+            </div>
+            <div className="text-right text-xs font-semibold leading-5 text-muted-foreground">
+              after about<br />
+              <span className="text-base font-black text-primary">{formatCurrency(estimatedAssistance)}</span><br />
+              in help
+            </div>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 border-t border-primary/15 pt-2 text-xs text-muted-foreground">
+            <span>Down payment after help: <span className="font-bold text-foreground">{formatCurrency(downPaymentAfterHelp)}</span></span>
+            <span>Closing costs: <span className="font-bold text-foreground">{formatCurrency(closingCosts)}</span></span>
+            {savingsApplied > 0 ? <span>Your savings: <span className="font-bold text-foreground">−{formatCurrency(savingsApplied)}</span></span> : null}
+          </div>
+        </div>
+
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">{program.description}</p>
+        {requirements.length ? (
+          <div className="mt-3 rounded-2xl bg-secondary/60 p-3 text-xs leading-5 text-secondary-foreground">
+            <p className="font-black uppercase tracking-[0.16em]">Requirements to verify</p>
+            <ul className="mt-1 space-y-1">
+              {requirements.map((requirement) => (
+                <li key={requirement}>• {requirement}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <span className={`rounded-full px-3 py-1 font-black ${repaymentClassName}`}>{repaymentProfile.label}</span>
+          {isBestProgram ? <span className="font-semibold text-primary">Best fit favors help you don't repay before the largest dollar amount.</span> : null}
+        </div>
+      </button>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -2254,92 +2306,51 @@ function DownPaymentAssistanceList({
       <EligibilityQuestionnaire eligibility={eligibility} onChange={onEligibilityChange} />
       <div className="space-y-4 rounded-3xl bg-gradient-to-br from-white/85 to-primary/10 p-4">
         <div>
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Down payment help</p>
-        <h3 className="mt-1 text-xl font-black tracking-tight">Choose an assistance option</h3>
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Down payment assistance</p>
+        <h3 className="mt-1 text-xl font-black tracking-tight">Choose a down payment assistance option</h3>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          {countyLabel ? `Showing ${filteredPrograms.length} of ${locationFilteredPrograms.length} statewide or local programs for ${countyLabel} ${countyNames.length === 1 ? "County" : "Counties"} after your filters.` : `Showing ${filteredPrograms.length} of ${locationFilteredPrograms.length} programs after your filters; choose one or more locations to narrow local programs by county.`} Verify final eligibility with the program or lender.
+          Down payment assistance (DPA) programs help cover the cash you need to buy.
+          {countyLabel ? ` We've limited local programs to ${countyLabel} ${countyNames.length === 1 ? "County" : "Counties"} based on where you want to buy — showing ${filteredPrograms.length} of ${locationFilteredPrograms.length} that fit.` : ` Showing ${filteredPrograms.length} of ${locationFilteredPrograms.length}. Pick a location earlier to auto-limit local programs to your county.`} Always confirm eligibility with the program or lender.
         </p>
+        <div className="mt-3 rounded-2xl border border-primary/15 bg-white/70 p-3 text-xs leading-5 text-muted-foreground">
+          <p className="font-black uppercase tracking-[0.16em] text-primary">Good to know</p>
+          <ul className="mt-1 space-y-1">
+            <li><span className="font-bold text-foreground">DPA</span> = down payment assistance.</li>
+            <li><span className="font-bold text-foreground">CHFA</span> = Colorado Housing and Finance Authority, the state agency behind many programs.</li>
+            <li><span className="font-bold text-foreground">AMI</span> = Area Median Income, the typical income for your area; income limits are set as a percentage of it.</li>
+            <li><span className="font-bold text-foreground">FHA</span> = Federal Housing Administration, a common government-backed loan with a low down payment.</li>
+            <li><span className="font-bold text-foreground">HUD</span> = U.S. Department of Housing and Urban Development, the federal housing agency.</li>
+          </ul>
+        </div>
       </div>
 
-      <div className="grid gap-3">
-        {displayedPrograms.length ? displayedPrograms.map((program) => {
-          const isSelected = selectedProgramId === program.id;
-          const isBestProgram = bestProgramId === program.id;
-          const { estimatedAssistance, estimatedCashNeeded, coverageRate, repaymentProfile } = getAssistanceFit(program, result.estimatedPrice, targetDownPayment);
-          const requirements = getProgramRequirements(program);
-          const repaymentClassName = repaymentProfile.tone === "best"
-            ? "bg-primary text-primary-foreground"
-            : "bg-muted text-muted-foreground";
+      {recommendedPrograms.length ? (
+        <div className="space-y-3">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-primary">Recommended for you</p>
+          {recommendedPrograms.map((program) => renderProgramCard(program))}
+        </div>
+      ) : (
+        <div className="rounded-3xl border bg-white/75 p-4 text-sm leading-6 text-muted-foreground">
+          No programs match those filters. Change a “no” answer to “unsure” if you want to keep programs visible while you verify a requirement.
+        </div>
+      )}
 
-          return (
-            <button
-              key={program.id}
-              type="button"
-              onClick={() => onSelect(program.id)}
-              className={`rounded-3xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                isSelected ? "border-primary bg-primary/10 shadow-glow" : "bg-white/75"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-black tracking-tight">{program.title}</p>
-                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{program.bestFor}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-secondary px-3 py-1 text-xs font-black text-secondary-foreground">{program.assistance}</span>
-                  <span className={`h-4 w-4 rounded-full border-2 ${isSelected ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
-                </div>
-              </div>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">{program.description}</p>
-              {requirements.length ? (
-                <div className="mt-3 rounded-2xl bg-secondary/60 p-3 text-xs leading-5 text-secondary-foreground">
-                  <p className="font-black uppercase tracking-[0.16em]">Requirements to verify</p>
-                  <ul className="mt-1 space-y-1">
-                    {requirements.map((requirement) => (
-                      <li key={requirement}>• {requirement}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-              <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-                <div className="rounded-2xl bg-white/80 p-2.5">
-                  <p className="text-muted-foreground">3.5% down</p>
-                  <p className="mt-1 font-bold">{formatCurrency(targetDownPayment)}</p>
-                </div>
-                <div className="rounded-2xl bg-white/80 p-2.5">
-                  <p className="text-muted-foreground">Assistance</p>
-                  <p className="mt-1 font-bold">{formatCurrency(estimatedAssistance)}</p>
-                </div>
-                <div className="rounded-2xl bg-white/80 p-2.5">
-                  <p className="text-muted-foreground">Covers</p>
-                  <p className="mt-1 font-bold">{formatPercent(coverageRate)}</p>
-                </div>
-                <div className="rounded-2xl bg-white/80 p-2.5">
-                  <p className="text-muted-foreground">Cash needed</p>
-                  <p className="mt-1 font-bold">{formatCurrency(estimatedCashNeeded)}</p>
-                </div>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                {isBestProgram ? <span className="rounded-full bg-primary px-3 py-1 font-black uppercase tracking-[0.14em] text-primary-foreground">Best option</span> : null}
-                <span className={`rounded-full px-3 py-1 font-black ${repaymentClassName}`}>{repaymentProfile.label}</span>
-                {isBestProgram ? <span className="font-semibold text-primary">Best fit favors non-repayable help before the largest dollar amount.</span> : null}
-              </div>
-            </button>
-          );
-        }) : (
-          <div className="rounded-3xl border bg-white/75 p-4 text-sm leading-6 text-muted-foreground">
-            No programs match those filters. Change a “no” answer to “unsure” if you want to keep programs visible while you verify a requirement.
-          </div>
-        )}
-      </div>
       {hiddenProgramCount ? (
-        <button
-          type="button"
-          onClick={() => setShowAllPrograms((current) => !current)}
-          className="w-full rounded-full border bg-white/75 px-4 py-3 text-sm font-black text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {showAllPrograms ? "Show fewer options" : `Show ${hiddenProgramCount} more option${hiddenProgramCount === 1 ? "" : "s"}`}
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={() => setShowAllPrograms((current) => !current)}
+            className="w-full rounded-full border bg-white/75 px-4 py-3 text-sm font-black text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {showAllPrograms ? "Hide other options" : `Show ${hiddenProgramCount} more option${hiddenProgramCount === 1 ? "" : "s"}`}
+          </button>
+          {showAllPrograms ? (
+            <div className="space-y-3">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Other options</p>
+              {otherPrograms.map((program) => renderProgramCard(program))}
+            </div>
+          ) : null}
+        </>
       ) : null}
       </div>
       </>
@@ -2456,53 +2467,67 @@ function AffordableHomeownershipProgramList({ locations, selectedProgramIds, onT
   );
 }
 
-function CreditScoreExplanation({ answers, result }: { answers: Answers; result: ReturnType<typeof calculateScore> }) {
+function CreditScoreExplanation({
+  answers,
+  result,
+  updateAnswer,
+}: {
+  answers: Answers;
+  result: ReturnType<typeof calculateScore>;
+  updateAnswer?: (value: string | number | string[]) => void;
+}) {
   const currentBand = getCreditScoreOption(answers.creditScore);
   const milestone = getCreditScoreMilestone(answers.creditScore);
-  const scorePosition = Math.max(0, Math.min(100, ((answers.creditScore - 560) / (850 - 560)) * 100));
 
   return (
-    <div className="space-y-4 rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
+    <div className="space-y-3 rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
       <div>
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Credit score explainer</p>
-        <h3 className="mt-1 text-xl font-black tracking-tight">Why this score matters</h3>
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Credit score</p>
+        <h3 className="mt-1 text-lg font-black tracking-tight">Why your score matters</h3>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Lenders use credit score as one signal for mortgage eligibility and rate pricing. A higher score strengthens the buy side because it can lower borrowing costs and keep more down payment programs available.
+          Your credit score changes two things. First, your <span className="font-semibold text-foreground">interest rate</span>: a higher score usually means a lower rate, which lowers your monthly payment. Second, the <span className="font-semibold text-foreground">help you can get with the down payment</span>: many Colorado programs ask for a score of about 620 or higher.
         </p>
       </div>
 
-      <div className="rounded-3xl bg-white/75 p-4">
-        <div className="mb-2 flex items-center justify-between gap-3 text-sm font-bold">
-          <span>{currentBand.range}</span>
+      <div className="rounded-2xl bg-white/75 p-3">
+        <div className="mb-3 flex items-center justify-between gap-3 text-sm font-bold">
+          <span>Score: {answers.creditScore}</span>
           <span className="text-primary">{currentBand.label}</span>
         </div>
-        <div className="relative h-4 rounded-full bg-gradient-to-r from-primary/25 via-primary/60 to-primary">
-          <div className="absolute top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-primary shadow-lg" style={{ left: `${scorePosition}%` }} />
-        </div>
+        <Slider
+          min={560}
+          max={850}
+          step={5}
+          value={[answers.creditScore]}
+          onValueChange={([value]) => updateAnswer?.(value)}
+          aria-label="Adjust your estimated credit score"
+        />
         <div className="mt-2 flex justify-between text-xs font-semibold text-muted-foreground">
           <span>560</span>
+          <span className="text-primary">Drag to explore</span>
           <span>850</span>
         </div>
       </div>
 
-      <div className="rounded-3xl bg-white/75 p-4">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Next useful milestone</p>
-        <p className="mt-2 text-sm font-semibold leading-6">{milestone}</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-2xl bg-white/75 p-3">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Your next goal</p>
+          <p className="mt-1 text-sm font-semibold leading-5">{milestone}</p>
+        </div>
+        <div className="rounded-2xl bg-white/75 p-3">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Your estimated interest rate</p>
+          <p className="mt-1 text-sm font-semibold leading-5">
+            About {(result.mortgageInterestRate * 100).toFixed(2)}% at this score. A higher score lowers the rate, which lowers your monthly payment.
+          </p>
+        </div>
       </div>
 
-      <div className="rounded-3xl bg-white/75 p-4">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Modeled rate impact</p>
-        <p className="mt-2 text-sm font-semibold leading-6">
-          This tier is modeled at {(result.mortgageInterestRate * 100).toFixed(2)}%, so the readiness bar changes only through the estimated monthly payment.
-        </p>
-      </div>
-
-      <div className="rounded-3xl bg-white/75 p-4">
-        <p className="font-black tracking-tight">How to improve the modeled result</p>
-        <ul className="mt-2 space-y-2 text-sm leading-6 text-muted-foreground">
-          <li>• Keep every payment on time while preparing for pre-approval.</li>
-          <li>• Pay down revolving balances before applying, especially cards near their limits.</li>
-          <li>• Avoid opening new debt or financing large purchases until after closing.</li>
+      <div className="rounded-2xl bg-white/75 p-3">
+        <p className="font-black tracking-tight">How to raise your score</p>
+        <ul className="mt-2 space-y-1.5 text-sm leading-5 text-muted-foreground">
+          <li>• Pay every bill on time.</li>
+          <li>• Pay down credit cards, especially ones near their limit.</li>
+          <li>• Hold off on new loans or credit cards until after you buy.</li>
         </ul>
       </div>
     </div>
@@ -2536,6 +2561,9 @@ function App() {
   const [showSummary, setShowSummary] = useState(initialRoute.showSummary);
   const [contactPicker, setContactPicker] = useState<"lender" | "realtor" | null>(initialRoute.contactPicker);
   const [returnToSummary, setReturnToSummary] = useState(initialRoute.returnToSummary);
+  const [showCompletion, setShowCompletion] = useState(false);
+  const [contactEmail, setContactEmail] = useState("");
+  const [emailSubmitted, setEmailSubmitted] = useState(false);
   const [assistanceSelectionMode, setAssistanceSelectionMode] = useState<AssistanceSelectionMode>(() => {
     if (answers.affordablePrograms.length) return "affordable";
     if (answers.assistanceProgram !== "none") return "dpa";
@@ -2565,7 +2593,6 @@ function App() {
   );
   const baselineResult = useMemo(() => calculateScore(baselineAnswers, baselineAnsweredKeys, currentQuestion.key === "location" ? null : modeledLocationOverride), [baselineAnswers, baselineAnsweredKeys, currentQuestion.key, modeledLocationOverride]);
   const answerValue = answers[currentQuestion.key];
-  const isLastPage = showSummary;
   const totalPages = questions.length * 2 + 2;
   const pageIndex = showIntro
     ? 1
@@ -2587,19 +2614,60 @@ function App() {
   const readinessTrailWidth = `${Math.abs(readinessMeterScore - baselineReadinessMeterScore)}%`;
   const selectedLender = getContactById(lenders, selectedLenderId);
   const selectedRealtor = getContactById(realtors, selectedRealtorId);
+  const savingsEstimateReady = (result.estimatedPrice ?? 0) > 0;
+  const savingsGap = Math.max(0, Math.round(result.cashNeededAfterAssistance ?? 0));
+  const savingsUpfrontTarget = Math.max(0, Math.round(result.savingsTarget ?? 0));
+  const savingsCovered = savingsEstimateReady && savingsGap <= 0;
+  const savingsHeadline = !savingsEstimateReady
+    ? currentQuestion.title
+    : savingsCovered
+      ? "You've saved enough to buy"
+      : `About ${formatCurrency(savingsGap)} more to buy`;
+  const savingsSubhead = !savingsEstimateReady
+    ? currentQuestion.description
+    : savingsCovered
+      ? `Your savings cover the estimated ${formatCurrency(savingsUpfrontTarget)} needed up front — a 3.5% down payment plus closing costs and a small cushion.`
+      : `That's the remaining cash to buy, part of the estimated ${formatCurrency(savingsUpfrontTarget)} needed up front for a 3.5% down payment plus closing costs and a small cushion.`;
   const filteredLocations = useMemo(() => {
-    const query = locationSearch.trim().toLowerCase();
-    const terms = query.split(/\s+/).filter(Boolean);
-    const matches = terms.length
-      ? coloradoLocations.filter((locationOption) => terms.every((term) => locationOption.name.toLowerCase().includes(term)))
-      : coloradoLocations;
+    const trimmed = locationSearch.trim();
+    const query = trimmed.toLowerCase();
+    const isZipQuery = /^\d{3,5}$/.test(trimmed);
+
+    let matches: { name: string; multiplier: number }[];
+    if (isZipQuery) {
+      const areas = Object.entries(coloradoZipAreas)
+        .filter(([zip]) => zip.startsWith(trimmed))
+        .map(([, area]) => area);
+      const matchedNames = new Set<string>();
+      for (const area of areas) {
+        const city = area.city.toLowerCase();
+        const cityMatches = city
+          ? coloradoLocations.filter((locationOption) => locationOption.name.split(",")[0].trim().toLowerCase() === city)
+          : [];
+        if (cityMatches.length) {
+          // Prefer the entry in this zip's county when a place name spans counties.
+          const inCounty = cityMatches.filter((locationOption) => locationOption.name.includes(area.county));
+          (inCounty.length ? inCounty : cityMatches).forEach((locationOption) => matchedNames.add(locationOption.name));
+        } else {
+          // No specific city in the list (or an unnamed zip); fall back to the county.
+          const countyMatch = coloradoLocations.find((locationOption) => locationOption.name === area.county);
+          if (countyMatch) matchedNames.add(countyMatch.name);
+        }
+      }
+      matches = coloradoLocations.filter((locationOption) => matchedNames.has(locationOption.name));
+    } else {
+      const terms = query.split(/\s+/).filter(Boolean);
+      matches = terms.length
+        ? coloradoLocations.filter((locationOption) => terms.every((term) => locationOption.name.toLowerCase().includes(term)))
+        : coloradoLocations;
+    }
 
     return matches
       .sort((first, second) => {
         const firstName = first.name.toLowerCase();
         const secondName = second.name.toLowerCase();
-        const firstStartsWithQuery = query.length > 0 && firstName.startsWith(query);
-        const secondStartsWithQuery = query.length > 0 && secondName.startsWith(query);
+        const firstStartsWithQuery = !isZipQuery && query.length > 0 && firstName.startsWith(query);
+        const secondStartsWithQuery = !isZipQuery && query.length > 0 && secondName.startsWith(query);
 
         if (firstStartsWithQuery !== secondStartsWithQuery) return firstStartsWithQuery ? -1 : 1;
         return first.name.localeCompare(second.name);
@@ -2635,13 +2703,15 @@ function App() {
     const scrollToTop = () => {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
       document.scrollingElement?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
     };
 
     scrollToTop();
     const animationFrame = window.requestAnimationFrame(scrollToTop);
 
     return () => window.cancelAnimationFrame(animationFrame);
-  }, [pageIndex, showAssistanceProgramPicker, contactPicker]);
+  }, [step, showIntro, showExplanation, showSummary, showAssistanceProgramPicker, contactPicker]);
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(answers));
@@ -2929,7 +2999,10 @@ function App() {
 
     if (contactPicker) return;
 
-    if (showSummary) return;
+    if (showSummary) {
+      setShowCompletion(true);
+      return;
+    }
 
     if (!showExplanation) {
       if (currentQuestion.key === "assistanceProgram") {
@@ -3033,10 +3106,10 @@ function App() {
             {!showIntro && !showExplanation ? (
               <>
                 <CardTitle className="text-2xl leading-tight sm:text-3xl">
-                  {contactPicker ? `${contactPicker === "lender" ? "Lender" : "Realtor"} options to contact` : showSummary ? "Summary and next steps" : showExplanation ? "What that means" : showAssistanceProgramPicker ? "Choose a specific program" : currentQuestion.title}
+                  {contactPicker ? `${contactPicker === "lender" ? "Lender" : "Realtor"} options to contact` : showSummary ? "Summary and next steps" : showExplanation ? "What that means" : showAssistanceProgramPicker ? "Choose a specific program" : currentQuestion.key === "savings" ? savingsHeadline : currentQuestion.title}
                 </CardTitle>
                 <CardDescription className="text-sm leading-6">
-                  {contactPicker ? "Use this list to compare contacts and decide who to follow up with." : showSummary ? "Review your choices, then connect with a lender and realtor to verify the plan." : showExplanation ? "Here is the simple takeaway from your last answer, plus a few resources to explore next." : showAssistanceProgramPicker ? "Now pick the program you want to model for this path." : currentQuestion.description}
+                  {contactPicker ? "Use this list to compare contacts and decide who to follow up with." : showSummary ? "Review your choices, then connect with a lender and realtor to verify the plan." : showExplanation ? "Here is the simple takeaway from your last answer, plus a few resources to explore next." : showAssistanceProgramPicker ? "Now pick the program you want to model for this path." : currentQuestion.key === "savings" ? savingsSubhead : currentQuestion.description}
                 </CardDescription>
               </>
             ) : null}
@@ -3128,7 +3201,7 @@ function App() {
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
-              <Button onClick={goNext} disabled={isLastPage || (isAssistanceChoicePage && !assistancePathSelected)}>
+              <Button onClick={goNext} disabled={isAssistanceChoicePage && !assistancePathSelected}>
                 {nextButtonLabel}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -3136,6 +3209,72 @@ function App() {
           </CardFooter>
         </Card>
       </div>
+
+      {showCompletion
+        ? createPortal(
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-3" role="dialog" aria-modal="true" aria-labelledby="completion-title">
+              <button type="button" className="absolute inset-0 cursor-default" onClick={() => setShowCompletion(false)} aria-label="Close" />
+              <div className="relative w-full max-w-md rounded-3xl border bg-white p-5 shadow-2xl">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">You're all set</p>
+                    <h3 id="completion-title" className="mt-1 text-xl font-black tracking-tight">Save your plan</h3>
+                  </div>
+                  <button type="button" onClick={() => setShowCompletion(false)} className="shrink-0 rounded-full p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Close">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">Print or save your readiness summary to bring to a lender or realtor.</p>
+                <button
+                  type="button"
+                  onClick={() => { setShowCompletion(false); window.setTimeout(() => window.print(), 150); }}
+                  className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print or save summary
+                </button>
+
+                <div className="mt-4 border-t border-border/70 pt-4">
+                  {emailSubmitted ? (
+                    <p className="inline-flex items-start gap-2 text-sm font-semibold leading-6 text-primary">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span>Thanks — we&apos;ll reach out to {contactEmail}.</span>
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-sm font-black tracking-tight">Want someone to reach out?</p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">Add your email if you'd like help with next steps. Optional.</p>
+                      <form
+                        className="mt-2 flex gap-2"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          const email = contactEmail.trim();
+                          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+                          window.localStorage.setItem(CONTACT_EMAIL_STORAGE_KEY, email);
+                          setEmailSubmitted(true);
+                        }}
+                      >
+                        <input
+                          type="email"
+                          inputMode="email"
+                          value={contactEmail}
+                          onChange={(event) => setContactEmail(event.target.value)}
+                          placeholder="you@example.com"
+                          aria-label="Your email"
+                          className="h-10 flex-1 rounded-full border bg-white px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        />
+                        <button type="submit" className="shrink-0 rounded-full bg-secondary px-4 py-2 text-sm font-bold text-secondary-foreground transition hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                          Send
+                        </button>
+                      </form>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </main>
   );
 }
