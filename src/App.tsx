@@ -664,7 +664,7 @@ const questions: Question[] = [
     key: "bedrooms",
     eyebrow: "Target home",
     title: "How many bedrooms do you need?",
-    description: "Choose the house size you are looking for so the readiness meter can compare the estimated monthly payment and down payment need.",
+    description: "Pick the home size you're looking for.",
     type: "number",
     min: 1,
     max: 8,
@@ -675,7 +675,7 @@ const questions: Question[] = [
     key: "income",
     eyebrow: "Monthly budget",
     title: "What is your household income?",
-    description: "Choose the pay frequency you know best. Income is the strongest early signal because it determines how much payment you can safely carry.",
+    description: "Enter it at whatever pay frequency is easiest.",
     type: "currency",
     min: 30000,
     max: 300000,
@@ -705,7 +705,7 @@ const questions: Question[] = [
     key: "assistanceProgram",
     eyebrow: "Buying help",
     title: "Start with the type of buying help you want",
-    description: "Compare a simple explanation of down payment assistance and affordable ownership before choosing a specific program.",
+    description: "Two paths can help. Pick one to explore.",
     type: "assistance",
   },
 ];
@@ -1938,7 +1938,7 @@ function EligibilityQuestionnaire({ eligibility, onChange }: { eligibility: Elig
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Filter programs</p>
         <h3 className="mt-1 text-xl font-black tracking-tight">Only show programs that fit your answers</h3>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Answer “no” to hide programs with that requirement. Leave “unsure” selected when you want to keep those programs visible until you can verify the rule.
+          Answer “no” to hide programs you don't qualify for. Leave “unsure” to keep them visible.
         </p>
       </div>
 

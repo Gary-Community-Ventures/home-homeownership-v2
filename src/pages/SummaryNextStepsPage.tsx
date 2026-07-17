@@ -315,10 +315,7 @@ export function SummaryNextStepsPage({
               Show questionnaire
             </button>
           </div>
-          <ul className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
-            <li>• Start with a lender who can give a written pre-approval estimate, compare rates, and confirm cash-to-close.</li>
-            <li>• Ask lenders if they work with your selected assistance or affordable ownership program before relying on the estimate.</li>
-          </ul>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">Get a written pre-approval and confirm they work with your chosen program.</p>
           <div className="mt-4 divide-y divide-border/70">
             <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Lender options to contact</p>
@@ -338,9 +335,7 @@ export function SummaryNextStepsPage({
               Show questionnaire
             </button>
           </div>
-          <ul className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
-            <li>• Choose a realtor who knows your target area, first-time buyer programs, HOA costs, inspection issues, and resale tradeoffs.</li>
-          </ul>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">Choose one who knows your area and first-time buyer programs.</p>
           <div className="mt-4 divide-y divide-border/70">
             <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Realtor options to contact</p>
