@@ -348,6 +348,42 @@ export function SummaryNextStepsPage({
         </div>
       </div>
 
+      {isGoodPosition ? (
+        <div className="rounded-3xl border-2 border-[#12233f]/15 bg-gradient-to-br from-[#12233f]/5 to-white/90 p-4">
+          <div className="flex items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#12233f] text-white shadow-md" aria-hidden="true">
+              <Building2 className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#12233f]">Your Backpack makes this fast</p>
+              <h3 className="mt-1 text-xl font-black tracking-tight">
+                Want to seek your pre-approval and automatically apply for down payment assistance?
+              </h3>
+            </div>
+          </div>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            Your Backpack already has your answers saved
+            {verifiedDocuments.length > 0 ? ` and ${verifiedDocuments.length} document${verifiedDocuments.length === 1 ? "" : "s"} verified` : ""} —
+            Impact Development Fund (IDF) can pull this instead of asking you to start from scratch.
+          </p>
+          <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-bold text-[#12233f]">
+            <Clock className="h-4 w-4" aria-hidden="true" />
+            Most applications take 15–20 minutes. Yours takes about 2.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setIdfSubmitted(false);
+              setShowIdfHandoff(true);
+            }}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#12233f] px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#193154] hover:shadow-lg"
+          >
+            Start with Impact Development Fund
+            <Send className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      ) : null}
+
       <div className="rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">The home you're modeling</p>
         <div className="mt-4 rounded-3xl border bg-white/75 p-4">
@@ -428,42 +464,6 @@ export function SummaryNextStepsPage({
           ))}
         </div>
       </div>
-
-      {isGoodPosition ? (
-        <div className="rounded-3xl border-2 border-[#12233f]/15 bg-gradient-to-br from-[#12233f]/5 to-white/90 p-4">
-          <div className="flex items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#12233f] text-white shadow-md" aria-hidden="true">
-              <Building2 className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#12233f]">Your Backpack makes this fast</p>
-              <h3 className="mt-1 text-xl font-black tracking-tight">
-                Want to seek your pre-approval and automatically apply for down payment assistance?
-              </h3>
-            </div>
-          </div>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Your Backpack already has your answers saved
-            {verifiedDocuments.length > 0 ? ` and ${verifiedDocuments.length} document${verifiedDocuments.length === 1 ? "" : "s"} verified` : ""} —
-            Impact Development Fund (IDF) can pull this instead of asking you to start from scratch.
-          </p>
-          <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-bold text-[#12233f]">
-            <Clock className="h-4 w-4" aria-hidden="true" />
-            Most applications take 15–20 minutes. Yours takes about 2.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              setIdfSubmitted(false);
-              setShowIdfHandoff(true);
-            }}
-            className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#12233f] px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#193154] hover:shadow-lg"
-          >
-            Start with Impact Development Fund
-            <Send className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
-      ) : null}
 
       {!isGoodPosition ? (
         <div className="space-y-3">
