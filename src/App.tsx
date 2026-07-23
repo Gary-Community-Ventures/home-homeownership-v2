@@ -3274,6 +3274,9 @@ function App() {
                 DownPaymentAssistanceList={DownPaymentAssistanceList}
                 CreditScoreExplanation={CreditScoreExplanation}
                 getLocationsLabel={getLocationsLabel}
+                paystubs={paystubs}
+                onUploadPaystubs={uploadPaystubs}
+                onRemovePaystub={removePaystub}
               />
             )}
 

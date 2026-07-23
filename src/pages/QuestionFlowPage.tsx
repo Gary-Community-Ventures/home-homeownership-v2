@@ -6,6 +6,7 @@ import { ImpactPage } from "@/pages/questions/ImpactPage";
 import { IncomeQuestionPage } from "@/pages/questions/IncomeQuestionPage";
 import { LocationQuestionPage } from "@/pages/questions/LocationQuestionPage";
 import { SavingsQuestionPage } from "@/pages/questions/SavingsQuestionPage";
+import type { PaystubRecord } from "@/App";
 
 export function QuestionFlowPage(props: {
   showExplanation: boolean;
@@ -48,6 +49,9 @@ export function QuestionFlowPage(props: {
   DownPaymentAssistanceList: React.ComponentType<any>;
   CreditScoreExplanation: React.ComponentType<any>;
   getLocationsLabel: (locations: string[]) => string;
+  paystubs: PaystubRecord[];
+  onUploadPaystubs: (files: FileList) => void;
+  onRemovePaystub: (id: string) => void;
 }) {
   if (props.showExplanation) {
     return <ImpactPage {...props} />;
