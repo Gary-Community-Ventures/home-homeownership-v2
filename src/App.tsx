@@ -25,6 +25,20 @@ export type Answers = {
 
 export type QuestionKey = keyof Answers;
 
+export type PaystubRecord = {
+  id: string;
+  name: string;
+  sizeLabel: string;
+  uploadedAt: string;
+  status: "verifying" | "verified";
+};
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 type Question = {
   key: QuestionKey;
   eyebrow: string;
@@ -108,6 +122,7 @@ const SELECTED_LENDER_STORAGE_KEY = "home-buying-prototype-selected-lender";
 const SELECTED_REALTOR_STORAGE_KEY = "home-buying-prototype-selected-realtor";
 const MODELED_LOCATION_STORAGE_KEY = "home-buying-prototype-modeled-location";
 const CONTACT_EMAIL_STORAGE_KEY = "home-buying-prototype-contact-email";
+const PAYSTUBS_STORAGE_KEY = "home-buying-prototype-paystubs";
 
 const affordableHomeownershipPrograms: HomeownershipProgram[] = [
   {
@@ -2583,6 +2598,15 @@ function App() {
   const [selectedLenderId, setSelectedLenderId] = useState(() => window.localStorage.getItem(SELECTED_LENDER_STORAGE_KEY));
   const [selectedRealtorId, setSelectedRealtorId] = useState(() => window.localStorage.getItem(SELECTED_REALTOR_STORAGE_KEY));
   const [modeledLocationOverride, setModeledLocationOverride] = useState(() => window.localStorage.getItem(MODELED_LOCATION_STORAGE_KEY));
+  const [paystubs, setPaystubs] = useState<PaystubRecord[]>(() => {
+    const saved = window.localStorage.getItem(PAYSTUBS_STORAGE_KEY);
+    if (!saved) return [];
+    try {
+      return JSON.parse(saved) as PaystubRecord[];
+    } catch {
+      return [];
+    }
+  });
 
   const answeredKeys = useMemo(() => questions.filter((question) => hasAnswerValue(answers, question.key)).map((question) => question.key), [answers]);
   // Backpack only counts a field once the user has actually confirmed it by moving past that
@@ -2732,6 +2756,10 @@ function App() {
   }, [eligibility]);
 
   useEffect(() => {
+    window.localStorage.setItem(PAYSTUBS_STORAGE_KEY, JSON.stringify(paystubs));
+  }, [paystubs]);
+
+  useEffect(() => {
     if (modeledLocationOverride && selectedLocations.includes(modeledLocationOverride)) {
       window.localStorage.setItem(MODELED_LOCATION_STORAGE_KEY, modeledLocationOverride);
       return;
@@ -2865,15 +2893,21 @@ function App() {
     setSelectedLenderId(null);
     setSelectedRealtorId(null);
     setModeledLocationOverride(null);
+    setPaystubs([]);
     window.localStorage.removeItem(STORAGE_KEY);
     window.localStorage.removeItem(ELIGIBILITY_STORAGE_KEY);
     window.localStorage.removeItem(SELECTED_LENDER_STORAGE_KEY);
     window.localStorage.removeItem(SELECTED_REALTOR_STORAGE_KEY);
     window.localStorage.removeItem(MODELED_LOCATION_STORAGE_KEY);
+    window.localStorage.removeItem(PAYSTUBS_STORAGE_KEY);
   }
 
   function exportBackpack() {
-    const payload = { exportedAt: new Date().toISOString(), answers };
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      answers,
+      paystubs: paystubs.map(({ name, sizeLabel, uploadedAt, status }) => ({ name, sizeLabel, uploadedAt, status })),
+    };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -2881,6 +2915,26 @@ function App() {
     link.download = "my-backpack.json";
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  function uploadPaystubs(files: FileList) {
+    const newEntries: PaystubRecord[] = Array.from(files).map((file) => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name: file.name,
+      sizeLabel: formatFileSize(file.size),
+      uploadedAt: new Date().toISOString(),
+      status: "verifying",
+    }));
+    setPaystubs((current) => [...current, ...newEntries]);
+    newEntries.forEach((entry) => {
+      window.setTimeout(() => {
+        setPaystubs((current) => current.map((item) => (item.id === entry.id ? { ...item, status: "verified" } : item)));
+      }, 1400);
+    });
+  }
+
+  function removePaystub(id: string) {
+    setPaystubs((current) => current.filter((item) => item.id !== id));
   }
 
   function openContactPicker(type: "lender" | "realtor") {
@@ -3101,7 +3155,15 @@ function App() {
         </section>
 
         {!showIntro ? (
-          <BackpackPanel answeredKeys={backpackKeys} onExport={exportBackpack} onErase={reset} showActions={showSummary} />
+          <BackpackPanel
+            answeredKeys={backpackKeys}
+            onExport={exportBackpack}
+            onErase={reset}
+            showActions={showSummary}
+            paystubs={paystubs}
+            onUploadPaystubs={uploadPaystubs}
+            onRemovePaystub={removePaystub}
+          />
         ) : null}
 
         <Card className="border-white/70 bg-white/85 shadow-2xl backdrop-blur">
