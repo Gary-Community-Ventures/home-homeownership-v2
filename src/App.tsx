@@ -25,8 +25,23 @@ export type Answers = {
 
 export type QuestionKey = keyof Answers;
 
-export type PaystubRecord = {
+export type DocumentCategory =
+  | "income"
+  | "assets"
+  | "giftLetter"
+  | "credit"
+  | "firstTimeBuyer"
+  | "firstGeneration"
+  | "disability"
+  | "veteran"
+  | "employer"
+  | "education"
+  | "preApproval"
+  | "selfId";
+
+export type DocumentRecord = {
   id: string;
+  category: DocumentCategory;
   name: string;
   sizeLabel: string;
   uploadedAt: string;
@@ -122,7 +137,7 @@ const SELECTED_LENDER_STORAGE_KEY = "home-buying-prototype-selected-lender";
 const SELECTED_REALTOR_STORAGE_KEY = "home-buying-prototype-selected-realtor";
 const MODELED_LOCATION_STORAGE_KEY = "home-buying-prototype-modeled-location";
 const CONTACT_EMAIL_STORAGE_KEY = "home-buying-prototype-contact-email";
-const PAYSTUBS_STORAGE_KEY = "home-buying-prototype-paystubs";
+const DOCUMENTS_STORAGE_KEY = "home-buying-prototype-documents";
 
 const affordableHomeownershipPrograms: HomeownershipProgram[] = [
   {
@@ -2598,11 +2613,11 @@ function App() {
   const [selectedLenderId, setSelectedLenderId] = useState(() => window.localStorage.getItem(SELECTED_LENDER_STORAGE_KEY));
   const [selectedRealtorId, setSelectedRealtorId] = useState(() => window.localStorage.getItem(SELECTED_REALTOR_STORAGE_KEY));
   const [modeledLocationOverride, setModeledLocationOverride] = useState(() => window.localStorage.getItem(MODELED_LOCATION_STORAGE_KEY));
-  const [paystubs, setPaystubs] = useState<PaystubRecord[]>(() => {
-    const saved = window.localStorage.getItem(PAYSTUBS_STORAGE_KEY);
+  const [documents, setDocuments] = useState<DocumentRecord[]>(() => {
+    const saved = window.localStorage.getItem(DOCUMENTS_STORAGE_KEY);
     if (!saved) return [];
     try {
-      return JSON.parse(saved) as PaystubRecord[];
+      return JSON.parse(saved) as DocumentRecord[];
     } catch {
       return [];
     }
@@ -2756,8 +2771,8 @@ function App() {
   }, [eligibility]);
 
   useEffect(() => {
-    window.localStorage.setItem(PAYSTUBS_STORAGE_KEY, JSON.stringify(paystubs));
-  }, [paystubs]);
+    window.localStorage.setItem(DOCUMENTS_STORAGE_KEY, JSON.stringify(documents));
+  }, [documents]);
 
   useEffect(() => {
     if (modeledLocationOverride && selectedLocations.includes(modeledLocationOverride)) {
@@ -2893,20 +2908,20 @@ function App() {
     setSelectedLenderId(null);
     setSelectedRealtorId(null);
     setModeledLocationOverride(null);
-    setPaystubs([]);
+    setDocuments([]);
     window.localStorage.removeItem(STORAGE_KEY);
     window.localStorage.removeItem(ELIGIBILITY_STORAGE_KEY);
     window.localStorage.removeItem(SELECTED_LENDER_STORAGE_KEY);
     window.localStorage.removeItem(SELECTED_REALTOR_STORAGE_KEY);
     window.localStorage.removeItem(MODELED_LOCATION_STORAGE_KEY);
-    window.localStorage.removeItem(PAYSTUBS_STORAGE_KEY);
+    window.localStorage.removeItem(DOCUMENTS_STORAGE_KEY);
   }
 
   function exportBackpack() {
     const payload = {
       exportedAt: new Date().toISOString(),
       answers,
-      paystubs: paystubs.map(({ name, sizeLabel, uploadedAt, status }) => ({ name, sizeLabel, uploadedAt, status })),
+      documents: documents.map(({ category, name, sizeLabel, uploadedAt, status }) => ({ category, name, sizeLabel, uploadedAt, status })),
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -2917,24 +2932,25 @@ function App() {
     URL.revokeObjectURL(url);
   }
 
-  function uploadPaystubs(files: FileList) {
-    const newEntries: PaystubRecord[] = Array.from(files).map((file) => ({
+  function uploadDocuments(category: DocumentCategory, files: FileList) {
+    const newEntries: DocumentRecord[] = Array.from(files).map((file) => ({
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      category,
       name: file.name,
       sizeLabel: formatFileSize(file.size),
       uploadedAt: new Date().toISOString(),
       status: "verifying",
     }));
-    setPaystubs((current) => [...current, ...newEntries]);
+    setDocuments((current) => [...current, ...newEntries]);
     newEntries.forEach((entry) => {
       window.setTimeout(() => {
-        setPaystubs((current) => current.map((item) => (item.id === entry.id ? { ...item, status: "verified" } : item)));
+        setDocuments((current) => current.map((item) => (item.id === entry.id ? { ...item, status: "verified" } : item)));
       }, 1400);
     });
   }
 
-  function removePaystub(id: string) {
-    setPaystubs((current) => current.filter((item) => item.id !== id));
+  function removeDocument(id: string) {
+    setDocuments((current) => current.filter((item) => item.id !== id));
   }
 
   function openContactPicker(type: "lender" | "realtor") {
@@ -3160,9 +3176,8 @@ function App() {
             onExport={exportBackpack}
             onErase={reset}
             showActions={showSummary}
-            paystubs={paystubs}
-            onUploadPaystubs={uploadPaystubs}
-            onRemovePaystub={removePaystub}
+            documents={documents}
+            onRemoveDocument={removeDocument}
           />
         ) : null}
 
@@ -3231,6 +3246,9 @@ function App() {
                 onUpdateStep={updateSummaryStep}
                 onFindLender={() => openContactPicker("lender")}
                 onFindRealtor={() => openContactPicker("realtor")}
+                documents={documents}
+                onUploadDocuments={uploadDocuments}
+                onRemoveDocument={removeDocument}
               />
             ) : (
               <QuestionFlowPage
@@ -3274,9 +3292,9 @@ function App() {
                 DownPaymentAssistanceList={DownPaymentAssistanceList}
                 CreditScoreExplanation={CreditScoreExplanation}
                 getLocationsLabel={getLocationsLabel}
-                paystubs={paystubs}
-                onUploadPaystubs={uploadPaystubs}
-                onRemovePaystub={removePaystub}
+                documents={documents}
+                onUploadDocuments={uploadDocuments}
+                onRemoveDocument={removeDocument}
               />
             )}
 

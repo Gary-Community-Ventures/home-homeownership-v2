@@ -1,6 +1,7 @@
 import { ExternalLink } from "lucide-react";
+import { DocumentUploadCard } from "@/components/home/DocumentUploadCard";
 
-export function CreditScoreQuestionPage({ answerValue, creditScoreOptions, updateAnswer }: any) {
+export function CreditScoreQuestionPage({ answerValue, creditScoreOptions, updateAnswer, documents, onUploadDocuments, onRemoveDocument }: any) {
   return (
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
@@ -38,6 +39,18 @@ export function CreditScoreQuestionPage({ answerValue, creditScoreOptions, updat
         </span>
         <ExternalLink className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
       </a>
+
+      <DocumentUploadCard
+        category="credit"
+        title="Verify with your credit report"
+        verifiedTitle="Credit verified"
+        description="A recent credit report backs up the score you entered. A soft-pull report (like the free Credit Karma one above) works fine."
+        verifiedDescription="A participating lender in the pilot could pull this straight from your Backpack instead of running a fresh check."
+        uploadLabel="Upload a credit report"
+        documents={documents}
+        onUpload={onUploadDocuments}
+        onRemove={onRemoveDocument}
+      />
     </div>
   );
 }

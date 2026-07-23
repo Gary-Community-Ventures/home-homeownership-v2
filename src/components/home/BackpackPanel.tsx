@@ -1,7 +1,6 @@
-import { useRef, useState } from "react";
-import type { ChangeEvent } from "react";
-import { ChevronDown, Download, FileCheck2, Lock, Trash2, Upload, X } from "lucide-react";
-import type { PaystubRecord, QuestionKey } from "@/App";
+import { useState } from "react";
+import { ChevronDown, Download, FileCheck2, Lock, Trash2 } from "lucide-react";
+import type { DocumentCategory, DocumentRecord, QuestionKey } from "@/App";
 
 const BACKPACK_FIELDS: { key: QuestionKey; label: string }[] = [
   { key: "location", label: "Location" },
@@ -12,33 +11,41 @@ const BACKPACK_FIELDS: { key: QuestionKey; label: string }[] = [
   { key: "assistanceProgram", label: "Buying help" },
 ];
 
+const CATEGORY_LABELS: Record<DocumentCategory, string> = {
+  income: "Income (paystub)",
+  assets: "Savings / asset statement",
+  giftLetter: "Gift letter",
+  credit: "Credit report",
+  firstTimeBuyer: "First-time buyer proof",
+  firstGeneration: "First-generation buyer affidavit",
+  disability: "Disability documentation",
+  veteran: "Veteran documentation",
+  employer: "Employer / workforce letter",
+  education: "Homebuyer education certificate",
+  preApproval: "Lender pre-approval letter",
+  selfId: "Self-identification form",
+};
+
 export function BackpackPanel({
   answeredKeys,
   onExport,
   onErase,
   showActions,
-  paystubs,
-  onUploadPaystubs,
-  onRemovePaystub,
+  documents,
+  onRemoveDocument,
 }: {
   answeredKeys: QuestionKey[];
   onExport: () => void;
   onErase: () => void;
   showActions: boolean;
-  paystubs: PaystubRecord[];
-  onUploadPaystubs: (files: FileList) => void;
-  onRemovePaystub: (id: string) => void;
+  documents: DocumentRecord[];
+  onRemoveDocument: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "verification">("overview");
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const answeredCount = BACKPACK_FIELDS.filter((field) => answeredKeys.includes(field.key)).length;
-  const verifiedCount = paystubs.filter((paystub) => paystub.status === "verified").length;
-
-  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    if (event.target.files?.length) onUploadPaystubs(event.target.files);
-    event.target.value = "";
-  }
+  const verifiedCount = documents.filter((doc) => doc.status === "verified").length;
+  const categoriesWithDocuments = Array.from(new Set(documents.map((doc) => doc.category)));
 
   return (
     <div className="rounded-3xl border border-primary/15 bg-gradient-to-br from-primary/10 to-white/85 shadow-sm">
@@ -99,7 +106,7 @@ export function BackpackPanel({
                 activeTab === "verification" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-white/70"
               }`}
             >
-              Verification{paystubs.length ? ` (${verifiedCount}/${paystubs.length})` : ""}
+              Verification{documents.length ? ` (${verifiedCount}/${documents.length})` : ""}
             </button>
           </div>
 
@@ -138,52 +145,54 @@ export function BackpackPanel({
           ) : (
             <div className="space-y-3 px-4 pb-4 pt-3">
               <p className="text-xs leading-6 text-muted-foreground">
-                Upload paystubs covering your last 30 days of pay. Once verified, this is what a participating lender or
-                property could pull straight from your Backpack instead of asking you for the same documents again at
+                Documents you upload along the way — income, savings, credit, and eligibility paperwork — land here once
+                verified. This is what a participating lender or property could pull instead of asking you again at
                 application time.
               </p>
 
-              <input ref={fileInputRef} type="file" accept="image/*,.pdf" multiple className="hidden" onChange={handleFileChange} />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90"
-              >
-                <Upload className="h-3.5 w-3.5" />
-                Upload paystubs
-              </button>
-
-              {paystubs.length ? (
-                <div className="space-y-2">
-                  {paystubs.map((paystub) => (
-                    <div key={paystub.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white/70 px-3 py-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-bold">{paystub.name}</p>
-                        <p className="text-[0.7rem] text-muted-foreground">{paystub.sizeLabel}</p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        {paystub.status === "verifying" ? (
-                          <span className="text-[0.7rem] font-bold text-muted-foreground">Verifying…</span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[0.7rem] font-bold text-primary">
-                            <FileCheck2 className="h-3.5 w-3.5" aria-hidden="true" />
-                            Verified
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => onRemovePaystub(paystub.id)}
-                          aria-label={`Remove ${paystub.name}`}
-                          className="text-muted-foreground transition hover:text-foreground"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
+              {categoriesWithDocuments.length ? (
+                <div className="space-y-3">
+                  {categoriesWithDocuments.map((category) => (
+                    <div key={category}>
+                      <p className="text-[0.7rem] font-bold uppercase tracking-[0.14em] text-primary">{CATEGORY_LABELS[category]}</p>
+                      <div className="mt-1.5 space-y-2">
+                        {documents
+                          .filter((doc) => doc.category === category)
+                          .map((doc) => (
+                            <div key={doc.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white/70 px-3 py-2">
+                              <div className="min-w-0">
+                                <p className="truncate text-xs font-bold">{doc.name}</p>
+                                <p className="text-[0.7rem] text-muted-foreground">{doc.sizeLabel}</p>
+                              </div>
+                              <div className="flex shrink-0 items-center gap-2">
+                                {doc.status === "verifying" ? (
+                                  <span className="text-[0.7rem] font-bold text-muted-foreground">Verifying…</span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[0.7rem] font-bold text-primary">
+                                    <FileCheck2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                    Verified
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => onRemoveDocument(doc.id)}
+                                  aria-label={`Remove ${doc.name}`}
+                                  className="text-xs font-bold text-muted-foreground transition hover:text-foreground"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-xs italic text-muted-foreground">No paystubs uploaded yet.</p>
+                <p className="text-xs italic text-muted-foreground">
+                  Nothing uploaded yet — you'll see upload prompts as you go (income, savings, credit) and a full document
+                  checklist on the summary page.
+                </p>
               )}
 
               <p className="text-[0.7rem] leading-5 text-muted-foreground">

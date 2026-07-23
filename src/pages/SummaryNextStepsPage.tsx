@@ -3,6 +3,75 @@ import { createPortal } from "react-dom";
 import { Printer, X } from "lucide-react";
 import { ContactCard } from "@/components/home/ContactCard";
 import { WalkingPersonSvg } from "@/components/home/HomeVisuals";
+import { DocumentUploadCard } from "@/components/home/DocumentUploadCard";
+import type { DocumentCategory, DocumentRecord } from "@/App";
+
+const OTHER_DOCUMENTS: { category: DocumentCategory; title: string; verifiedTitle: string; description: string; verifiedDescription: string; uploadLabel: string }[] = [
+  {
+    category: "firstTimeBuyer",
+    title: "First-time buyer proof",
+    verifiedTitle: "First-time buyer status verified",
+    description: "Most assistance programs require this — usually shown with a few years of tax transcripts.",
+    verifiedDescription: "On file — programs that require first-time buyer status can confirm this without new paperwork.",
+    uploadLabel: "Upload proof",
+  },
+  {
+    category: "firstGeneration",
+    title: "First-generation buyer affidavit",
+    verifiedTitle: "First-generation status verified",
+    description: "Needed for programs like CHFA FirstGeneration that prioritize buyers whose parents haven't owned a home.",
+    verifiedDescription: "On file for programs that prioritize first-generation buyers.",
+    uploadLabel: "Upload affidavit",
+  },
+  {
+    category: "disability",
+    title: "Disability documentation",
+    verifiedTitle: "Disability documentation verified",
+    description: "Required for programs like CHFA HomeAccess or CHAC's disability path.",
+    verifiedDescription: "On file for disability-specific assistance programs.",
+    uploadLabel: "Upload documentation",
+  },
+  {
+    category: "veteran",
+    title: "Veteran documentation (DD-214)",
+    verifiedTitle: "Veteran status verified",
+    description: "Unlocks veteran-specific exceptions on a few programs.",
+    verifiedDescription: "On file for programs with veteran exceptions.",
+    uploadLabel: "Upload DD-214",
+  },
+  {
+    category: "employer",
+    title: "Employer or workforce verification letter",
+    verifiedTitle: "Employer verification confirmed",
+    description: "Needed for local workforce programs tied to a specific employer, county, or service area.",
+    verifiedDescription: "On file for workforce-restricted assistance programs.",
+    uploadLabel: "Upload letter",
+  },
+  {
+    category: "education",
+    title: "Homebuyer education certificate",
+    verifiedTitle: "Education certificate verified",
+    description: "A short course required by many DPA programs before closing — often free through a housing counselor.",
+    verifiedDescription: "On file — programs that require homebuyer education can confirm you've completed it.",
+    uploadLabel: "Upload certificate",
+  },
+  {
+    category: "preApproval",
+    title: "Lender pre-approval letter",
+    verifiedTitle: "Pre-approval on file",
+    description: "You'll get this once you connect with a lender below — add it here when you have it.",
+    verifiedDescription: "Your realtor and any program you apply to can reference this pre-approval.",
+    uploadLabel: "Upload pre-approval letter",
+  },
+  {
+    category: "selfId",
+    title: "Program self-identification form",
+    verifiedTitle: "Self-identification on file",
+    description: "A few programs (like the Dearfield Fund) require a self-identification form as part of eligibility.",
+    verifiedDescription: "On file for programs that require self-identification.",
+    uploadLabel: "Upload form",
+  },
+];
 
 type Contact = Parameters<typeof ContactCard>[0]["contact"];
 
@@ -86,6 +155,9 @@ export function SummaryNextStepsPage({
   onUpdateStep,
   onFindLender,
   onFindRealtor,
+  documents,
+  onUploadDocuments,
+  onRemoveDocument,
 }: {
   answers: any;
   result: any;
@@ -101,6 +173,9 @@ export function SummaryNextStepsPage({
   onUpdateStep: (step: UpdateStepKey) => void;
   onFindLender: () => void;
   onFindRealtor: () => void;
+  documents: DocumentRecord[];
+  onUploadDocuments: (category: DocumentCategory, files: FileList) => void;
+  onRemoveDocument: (id: string) => void;
 }) {
   const [questionnaireType, setQuestionnaireType] = useState<"lender" | "realtor" | null>(null);
   const program = getAssistanceProgram(answers.assistanceProgram);
@@ -301,6 +376,32 @@ export function SummaryNextStepsPage({
             <UpdateButton step={item.step} />
           </div>
         ))}
+        </div>
+      </div>
+
+      <div className="rounded-3xl border bg-white/60 p-4">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Before you connect below</p>
+        <h3 className="mt-1 text-xl font-black tracking-tight">Other documents your lender may ask for</h3>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Income, savings, and credit are already covered earlier in your Backpack. These depend on which programs and
+          eligibility paths you're exploring — add what applies to you now, or bring the rest to your first conversation.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {OTHER_DOCUMENTS.map((doc) => (
+            <DocumentUploadCard
+              key={doc.category}
+              category={doc.category}
+              title={doc.title}
+              verifiedTitle={doc.verifiedTitle}
+              description={doc.description}
+              verifiedDescription={doc.verifiedDescription}
+              uploadLabel={doc.uploadLabel}
+              documents={documents}
+              onUpload={onUploadDocuments}
+              onRemove={onRemoveDocument}
+              compact
+            />
+          ))}
         </div>
       </div>
 

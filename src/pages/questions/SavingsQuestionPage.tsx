@@ -1,8 +1,9 @@
 import { Check, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import { DocumentUploadCard } from "@/components/home/DocumentUploadCard";
 
-export function SavingsQuestionPage({ currentQuestion, answerValue, updateAnswer, result, formatCurrency }: any) {
+export function SavingsQuestionPage({ currentQuestion, answerValue, updateAnswer, result, formatCurrency, documents, onUploadDocuments, onRemoveDocument }: any) {
   const savings = Number(result?.savings) || 0;
   const target = Math.max(0, Math.round(result?.savingsTarget ?? 0));
   const gap = Math.max(0, Math.round(result?.cashNeededAfterAssistance ?? 0));
@@ -91,6 +92,30 @@ export function SavingsQuestionPage({ currentQuestion, answerValue, updateAnswer
           Enter your location and home size first, and we'll show how your savings compare to the estimated cash needed to buy.
         </p>
       )}
+
+      <DocumentUploadCard
+        category="assets"
+        title="Verify your savings with a bank or asset statement"
+        verifiedTitle="Savings verified"
+        description="Shows a lender where your down payment is coming from and how much you have in reserve."
+        verifiedDescription="This statement travels in your Backpack — a participating lender could use it instead of asking you to re-submit one."
+        uploadLabel="Upload a statement"
+        documents={documents}
+        onUpload={onUploadDocuments}
+        onRemove={onRemoveDocument}
+      />
+
+      <DocumentUploadCard
+        category="giftLetter"
+        title="Using gift funds toward your down payment?"
+        verifiedTitle="Gift letter verified"
+        description="Several assistance programs allow gift funds for part of the contribution, but need a signed gift letter to prove it isn't a loan."
+        verifiedDescription="Your gift letter is on file — programs that allow gift funds can pull it instead of asking for a new one."
+        uploadLabel="Upload a gift letter"
+        documents={documents}
+        onUpload={onUploadDocuments}
+        onRemove={onRemoveDocument}
+      />
     </div>
   );
 }
