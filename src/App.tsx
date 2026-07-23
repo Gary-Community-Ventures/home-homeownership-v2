@@ -5,13 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { HouseSizeSvg, WalkingPersonSvg } from "@/components/home/HomeVisuals";
+import { BackpackPanel } from "@/components/home/BackpackPanel";
 import { ContactPickerPage as ContactPickerPageView } from "@/pages/ContactPickerPage";
 import { QuestionFlowPage } from "@/pages/QuestionFlowPage";
 import { SummaryNextStepsPage } from "@/pages/SummaryNextStepsPage";
 import { WhatThisIsPage as WhatThisIsPageView } from "@/pages/WhatThisIsPage";
 import { coloradoZipAreas } from "@/lib/coloradoZipAreas";
 
-type Answers = {
+export type Answers = {
   location: string[];
   income: number | "";
   incomeFrequency: "weekly" | "biweekly" | "monthly" | "annual";
@@ -22,7 +23,7 @@ type Answers = {
   affordablePrograms: string[];
 };
 
-type QuestionKey = keyof Answers;
+export type QuestionKey = keyof Answers;
 
 type Question = {
   key: QuestionKey;
@@ -2862,6 +2863,17 @@ function App() {
     window.localStorage.removeItem(MODELED_LOCATION_STORAGE_KEY);
   }
 
+  function exportBackpack() {
+    const payload = { exportedAt: new Date().toISOString(), answers };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "my-backpack.json";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   function openContactPicker(type: "lender" | "realtor") {
     setShowIntro(false);
     setShowSummary(true);
@@ -3078,6 +3090,10 @@ function App() {
             </CardContent>
           </Card>
         </section>
+
+        {!showIntro ? (
+          <BackpackPanel answeredKeys={answeredKeys} onExport={exportBackpack} onErase={reset} showActions={showSummary} />
+        ) : null}
 
         <Card className="border-white/70 bg-white/85 shadow-2xl backdrop-blur">
             <CardHeader className="gap-1.5 p-5 pb-4">
