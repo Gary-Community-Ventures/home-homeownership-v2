@@ -21,17 +21,21 @@ export function SavingsQuestionPage({ currentQuestion, answerValue, updateAnswer
 
   return (
     <div className="space-y-5">
-      <div className="relative">
-        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-base font-semibold text-muted-foreground">$</span>
-        <Input
-          className="pl-8 text-left text-lg font-semibold"
-          type="number"
-          min={rangeMin}
-          max={rangeMax}
-          step={step}
-          value={answerValue}
-          onChange={(event) => updateAnswer(event.target.value === "" ? "" : Number(event.target.value))}
-        />
+      <div>
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Enter how much you have saved</p>
+        <div className="relative mt-2">
+          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-base font-semibold text-muted-foreground">$</span>
+          <Input
+            className="pl-8 text-left text-lg font-semibold"
+            type="number"
+            min={rangeMin}
+            max={rangeMax}
+            step={step}
+            value={answerValue}
+            onChange={(event) => updateAnswer(event.target.value === "" ? "" : Number(event.target.value))}
+            aria-label="Your savings"
+          />
+        </div>
       </div>
 
       {estimateReady ? (
