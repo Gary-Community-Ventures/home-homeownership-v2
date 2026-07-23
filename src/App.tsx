@@ -2585,6 +2585,15 @@ function App() {
   const [modeledLocationOverride, setModeledLocationOverride] = useState(() => window.localStorage.getItem(MODELED_LOCATION_STORAGE_KEY));
 
   const answeredKeys = useMemo(() => questions.filter((question) => hasAnswerValue(answers, question.key)).map((question) => question.key), [answers]);
+  // Backpack only counts a field once the user has actually confirmed it by moving past that
+  // question — otherwise unset defaults (e.g. bedrooms: 3, creditScore: 620) would show as
+  // "saved" before the person ever reached that question.
+  const backpackKeys = useMemo(() => {
+    if (showSummary) return answeredKeys;
+    return questions
+      .filter((question, index) => hasAnswerValue(answers, question.key) && (index < step || (index === step && showExplanation)))
+      .map((question) => question.key);
+  }, [answers, answeredKeys, step, showExplanation, showSummary]);
   const currentQuestion = questions[step];
   const result = useMemo(() => calculateScore(answers, answeredKeys, modeledLocationOverride), [answers, answeredKeys, modeledLocationOverride]);
   const baselineAnswers = useMemo(() => getAnswersWithoutQuestionAnswer(answers, currentQuestion.key), [answers, currentQuestion.key]);
@@ -3092,7 +3101,7 @@ function App() {
         </section>
 
         {!showIntro ? (
-          <BackpackPanel answeredKeys={answeredKeys} onExport={exportBackpack} onErase={reset} showActions={showSummary} />
+          <BackpackPanel answeredKeys={backpackKeys} onExport={exportBackpack} onErase={reset} showActions={showSummary} />
         ) : null}
 
         <Card className="border-white/70 bg-white/85 shadow-2xl backdrop-blur">
