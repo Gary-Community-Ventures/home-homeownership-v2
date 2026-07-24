@@ -1,4 +1,5 @@
 import { Input } from "@/components/ui/input";
+import { DocumentUploadCard } from "@/components/home/DocumentUploadCard";
 
 const incomeFrequencyOptions = [
   { value: "weekly", label: "Weekly", multiplier: 52 },
@@ -7,7 +8,7 @@ const incomeFrequencyOptions = [
   { value: "annual", label: "Annual", multiplier: 1 },
 ];
 
-export function IncomeQuestionPage({ currentQuestion, answerValue, answers, setAnswers, updateAnswer }: any) {
+export function IncomeQuestionPage({ currentQuestion, answerValue, answers, setAnswers, updateAnswer, documents, onUploadDocuments, onRemoveDocument }: any) {
   const selectedFrequency = incomeFrequencyOptions.find((option) => option.value === answers.incomeFrequency) ?? incomeFrequencyOptions[3];
   const displayedIncome = answerValue === "" ? "" : Math.round(Number(answerValue) / selectedFrequency.multiplier);
 
@@ -59,6 +60,18 @@ export function IncomeQuestionPage({ currentQuestion, answerValue, answers, setA
           onChange={(event) => updateAnswer(event.target.value === "" ? "" : Number(event.target.value) * selectedFrequency.multiplier)}
         />
       </div>
+
+      <DocumentUploadCard
+        category="income"
+        title="Verify this income with a paystub"
+        verifiedTitle="Income verified"
+        description="Upload paystubs covering your last 30 days of pay. Once verified, you won't need to hand this over again when you apply."
+        verifiedDescription="A participating lender or property in the pilot could pull this straight from your Backpack instead of asking you for it again at application time."
+        uploadLabel="Upload a paystub"
+        documents={documents}
+        onUpload={onUploadDocuments}
+        onRemove={onRemoveDocument}
+      />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { ImpactPage } from "@/pages/questions/ImpactPage";
 import { IncomeQuestionPage } from "@/pages/questions/IncomeQuestionPage";
 import { LocationQuestionPage } from "@/pages/questions/LocationQuestionPage";
 import { SavingsQuestionPage } from "@/pages/questions/SavingsQuestionPage";
+import type { DocumentCategory, DocumentRecord } from "@/App";
 
 export function QuestionFlowPage(props: {
   showExplanation: boolean;
@@ -48,6 +49,9 @@ export function QuestionFlowPage(props: {
   DownPaymentAssistanceList: React.ComponentType<any>;
   CreditScoreExplanation: React.ComponentType<any>;
   getLocationsLabel: (locations: string[]) => string;
+  documents: DocumentRecord[];
+  onUploadDocuments: (category: DocumentCategory, files: FileList) => void;
+  onRemoveDocument: (id: string) => void;
 }) {
   if (props.showExplanation) {
     return <ImpactPage {...props} />;

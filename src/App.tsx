@@ -5,13 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { HouseSizeSvg, WalkingPersonSvg } from "@/components/home/HomeVisuals";
+import { BackpackPanel } from "@/components/home/BackpackPanel";
 import { ContactPickerPage as ContactPickerPageView } from "@/pages/ContactPickerPage";
 import { QuestionFlowPage } from "@/pages/QuestionFlowPage";
 import { SummaryNextStepsPage } from "@/pages/SummaryNextStepsPage";
 import { WhatThisIsPage as WhatThisIsPageView } from "@/pages/WhatThisIsPage";
 import { coloradoZipAreas } from "@/lib/coloradoZipAreas";
 
-type Answers = {
+export type Answers = {
   location: string[];
   income: number | "";
   incomeFrequency: "weekly" | "biweekly" | "monthly" | "annual";
@@ -22,7 +23,36 @@ type Answers = {
   affordablePrograms: string[];
 };
 
-type QuestionKey = keyof Answers;
+export type QuestionKey = keyof Answers;
+
+export type DocumentCategory =
+  | "income"
+  | "assets"
+  | "giftLetter"
+  | "credit"
+  | "firstTimeBuyer"
+  | "firstGeneration"
+  | "disability"
+  | "veteran"
+  | "employer"
+  | "education"
+  | "preApproval"
+  | "selfId";
+
+export type DocumentRecord = {
+  id: string;
+  category: DocumentCategory;
+  name: string;
+  sizeLabel: string;
+  uploadedAt: string;
+  status: "verifying" | "verified";
+};
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 type Question = {
   key: QuestionKey;
@@ -66,6 +96,8 @@ type AssistanceProgram = {
   minimumContributionAssistanceRate?: number;
   bestFor: string;
   description: string;
+  /** Hard annual household income cap in dollars, where the program publishes one (vs. a %AMI band that varies by county and isn't modeled here). */
+  incomeLimit?: number;
 };
 
 type Contact = {
@@ -107,6 +139,7 @@ const SELECTED_LENDER_STORAGE_KEY = "home-buying-prototype-selected-lender";
 const SELECTED_REALTOR_STORAGE_KEY = "home-buying-prototype-selected-realtor";
 const MODELED_LOCATION_STORAGE_KEY = "home-buying-prototype-modeled-location";
 const CONTACT_EMAIL_STORAGE_KEY = "home-buying-prototype-contact-email";
+const DOCUMENTS_STORAGE_KEY = "home-buying-prototype-documents";
 
 const affordableHomeownershipPrograms: HomeownershipProgram[] = [
   {
@@ -260,6 +293,7 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     minimumContribution: 1000,
     bestFor: "Statewide buyers, not first-time only",
     description: "CHFA first mortgage paired with a DPA second or grant. 620 minimum credit score, $1,000 minimum contribution, gifts allowed, $174,440 statewide income limit.",
+    incomeLimit: 174440,
   },
   {
     id: "chfa-firstgeneration",
@@ -316,6 +350,7 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     assistanceRate: 0.06,
     bestFor: "Denver metro and approved counties",
     description: "Second mortgage through approved MetroDPA lenders. Not limited to first-time buyers, 620+ credit score, $216,000 income limit, approved metro-area counties only.",
+    incomeLimit: 216000,
   },
   {
     id: "aurora-prop-123",
@@ -458,6 +493,7 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     minimumContribution: 1000,
     bestFor: "Statewide buyers, broad loan types",
     description: "CHFA zero-percent silent second with no monthly payments. Not limited to first-time buyers, $174,440 statewide income limit, $1,000 contribution.",
+    incomeLimit: 174440,
   },
   {
     id: "chenoa-fund-fha",
@@ -1561,6 +1597,16 @@ function programMatchesEligibility(program: AssistanceProgram, eligibility: Elig
   return true;
 }
 
+// Only enforced where a program publishes a hard dollar income cap (vs. a %AMI band, which
+// varies by county and isn't modeled here) — so this only ever narrows programs we're
+// confident are actually out of reach, never programs we're just unsure about.
+function programMatchesIncome(program: AssistanceProgram, income: number) {
+  if (!program.incomeLimit) return true;
+  if (!Number.isFinite(income) || income <= 0) return true;
+
+  return income <= program.incomeLimit;
+}
+
 function estimateHousingForBedrooms(bedrooms: number, location: string) {
   const bedroomCount = Math.max(0, Math.min(8, Math.round(bedrooms || 0)));
   const locationMultiplier = getLocationMultiplier(location);
@@ -1684,6 +1730,7 @@ function calculateScore(answers: Answers, answeredKeys: QuestionKey[], modeledLo
     affordabilityRatio,
     targetDownPayment,
     cashDownPaymentTarget,
+    income,
     savings,
     savingsDeductions,
     savingsTarget,
@@ -1817,7 +1864,7 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
       {
         title: "Local housing programs",
         description: "Look for county or city first-time buyer assistance, down-payment grants, and income-restricted ownership options.",
-        url: "https://www.hud.gov/states/colorado/homeownership/buyingprgms",
+        url: "https://www.hud.gov/states/colorado",
       },
     ];
   }
@@ -1827,12 +1874,12 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
       {
         title: "Payment-to-income target",
         description: `This guide estimates housing costs at ${Math.round(result.housingRatio * 100)}% of income; many buyers use 30% as a planning target with room up to 36% depending on the loan and budget.`,
-        url: "https://www.consumerfinance.gov/owning-a-home/prepare/mortgage-affordability/",
+        url: "https://www.consumerfinance.gov/owning-a-home/prepare/figure-out-how-much-you-want-to-spend/",
       },
       {
         title: "Budget cushion",
         description: "Set aside room for utilities, maintenance, HOA dues, insurance changes, and emergency savings before stretching for a payment.",
-        url: "https://www.consumerfinance.gov/owning-a-home/prepare/check-your-spending/",
+        url: "https://www.consumerfinance.gov/owning-a-home/prepare/determine-your-down-payment/",
       },
     ];
   }
@@ -1847,7 +1894,7 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
       {
         title: "Right-size your search",
         description: "Try one bedroom fewer or a flexible office/guest room setup to see how much the target home size changes affordability.",
-        url: "https://www.consumerfinance.gov/owning-a-home/prepare/decide-how-much-to-spend/",
+        url: "https://www.consumerfinance.gov/owning-a-home/prepare/decide-how-much-you-want-spend/",
       },
     ];
   }
@@ -1857,12 +1904,12 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
       {
         title: "Down payment planning",
         description: `For this modeled home size, the estimated 3.5% down payment is ${formatCurrency(result.targetDownPayment)} before any assistance is applied.`,
-        url: "https://www.consumerfinance.gov/owning-a-home/prepare/decide-how-much-to-spend/",
+        url: "https://www.consumerfinance.gov/owning-a-home/prepare/determine-your-down-payment/",
       },
       {
         title: "Saving for upfront costs",
         description: "Plan for closing costs and reserves in addition to the down payment so the purchase does not use every available dollar.",
-        url: "https://www.consumerfinance.gov/owning-a-home/prepare/check-your-spending/",
+        url: "https://www.consumerfinance.gov/owning-a-home/explore/learn-about-loan-costs/",
       },
     ];
   }
@@ -1874,7 +1921,7 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
       {
         title: `${program.title} fit check`,
         description: `This selection estimates ${formatCurrency(result.assistanceAmount)} in help toward a ${formatCurrency(result.targetDownPayment)} down payment for the modeled home size.`,
-        url: assistanceProgramLinks[program.id] ?? "https://www.hud.gov/states/colorado/homeownership/buyingprgms",
+        url: assistanceProgramLinks[program.id] ?? "https://www.hud.gov/states/colorado",
       },
     ];
   }
@@ -2216,6 +2263,7 @@ function DownPaymentAssistanceList({
   const locationFilteredPrograms = selectableAssistancePrograms.filter((program) => programMatchesAnyCounty(program, countyNames));
   const filteredPrograms = locationFilteredPrograms
     .filter((program) => programMatchesEligibility(program, eligibility))
+    .filter((program) => programMatchesIncome(program, result.income))
     .sort((first, second) => getAssistanceFit(second, result.estimatedPrice, targetDownPayment).score - getAssistanceFit(first, result.estimatedPrice, targetDownPayment).score);
   const recommendedPrograms = filteredPrograms.slice(0, 2);
   const otherPrograms = filteredPrograms.slice(2);
@@ -2582,8 +2630,26 @@ function App() {
   const [selectedLenderId, setSelectedLenderId] = useState(() => window.localStorage.getItem(SELECTED_LENDER_STORAGE_KEY));
   const [selectedRealtorId, setSelectedRealtorId] = useState(() => window.localStorage.getItem(SELECTED_REALTOR_STORAGE_KEY));
   const [modeledLocationOverride, setModeledLocationOverride] = useState(() => window.localStorage.getItem(MODELED_LOCATION_STORAGE_KEY));
+  const [documents, setDocuments] = useState<DocumentRecord[]>(() => {
+    const saved = window.localStorage.getItem(DOCUMENTS_STORAGE_KEY);
+    if (!saved) return [];
+    try {
+      return JSON.parse(saved) as DocumentRecord[];
+    } catch {
+      return [];
+    }
+  });
 
   const answeredKeys = useMemo(() => questions.filter((question) => hasAnswerValue(answers, question.key)).map((question) => question.key), [answers]);
+  // Backpack only counts a field once the user has actually confirmed it by moving past that
+  // question — otherwise unset defaults (e.g. bedrooms: 3, creditScore: 620) would show as
+  // "saved" before the person ever reached that question.
+  const backpackKeys = useMemo(() => {
+    if (showSummary) return answeredKeys;
+    return questions
+      .filter((question, index) => hasAnswerValue(answers, question.key) && (index < step || (index === step && showExplanation)))
+      .map((question) => question.key);
+  }, [answers, answeredKeys, step, showExplanation, showSummary]);
   const currentQuestion = questions[step];
   const result = useMemo(() => calculateScore(answers, answeredKeys, modeledLocationOverride), [answers, answeredKeys, modeledLocationOverride]);
   const baselineAnswers = useMemo(() => getAnswersWithoutQuestionAnswer(answers, currentQuestion.key), [answers, currentQuestion.key]);
@@ -2722,6 +2788,10 @@ function App() {
   }, [eligibility]);
 
   useEffect(() => {
+    window.localStorage.setItem(DOCUMENTS_STORAGE_KEY, JSON.stringify(documents));
+  }, [documents]);
+
+  useEffect(() => {
     if (modeledLocationOverride && selectedLocations.includes(modeledLocationOverride)) {
       window.localStorage.setItem(MODELED_LOCATION_STORAGE_KEY, modeledLocationOverride);
       return;
@@ -2855,11 +2925,49 @@ function App() {
     setSelectedLenderId(null);
     setSelectedRealtorId(null);
     setModeledLocationOverride(null);
+    setDocuments([]);
     window.localStorage.removeItem(STORAGE_KEY);
     window.localStorage.removeItem(ELIGIBILITY_STORAGE_KEY);
     window.localStorage.removeItem(SELECTED_LENDER_STORAGE_KEY);
     window.localStorage.removeItem(SELECTED_REALTOR_STORAGE_KEY);
     window.localStorage.removeItem(MODELED_LOCATION_STORAGE_KEY);
+    window.localStorage.removeItem(DOCUMENTS_STORAGE_KEY);
+  }
+
+  function exportBackpack() {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      answers,
+      documents: documents.map(({ category, name, sizeLabel, uploadedAt, status }) => ({ category, name, sizeLabel, uploadedAt, status })),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "my-backpack.json";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function uploadDocuments(category: DocumentCategory, files: FileList) {
+    const newEntries: DocumentRecord[] = Array.from(files).map((file) => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      category,
+      name: file.name,
+      sizeLabel: formatFileSize(file.size),
+      uploadedAt: new Date().toISOString(),
+      status: "verifying",
+    }));
+    setDocuments((current) => [...current, ...newEntries]);
+    newEntries.forEach((entry) => {
+      window.setTimeout(() => {
+        setDocuments((current) => current.map((item) => (item.id === entry.id ? { ...item, status: "verified" } : item)));
+      }, 1400);
+    });
+  }
+
+  function removeDocument(id: string) {
+    setDocuments((current) => current.filter((item) => item.id !== id));
   }
 
   function openContactPicker(type: "lender" | "realtor") {
@@ -3079,6 +3187,17 @@ function App() {
           </Card>
         </section>
 
+        {!showIntro ? (
+          <BackpackPanel
+            answeredKeys={backpackKeys}
+            onExport={exportBackpack}
+            onErase={reset}
+            showActions={showSummary}
+            documents={documents}
+            onRemoveDocument={removeDocument}
+          />
+        ) : null}
+
         <Card className="border-white/70 bg-white/85 shadow-2xl backdrop-blur">
             <CardHeader className="gap-1.5 p-5 pb-4">
             <div className="flex gap-2">
@@ -3144,6 +3263,9 @@ function App() {
                 onUpdateStep={updateSummaryStep}
                 onFindLender={() => openContactPicker("lender")}
                 onFindRealtor={() => openContactPicker("realtor")}
+                documents={documents}
+                onUploadDocuments={uploadDocuments}
+                onRemoveDocument={removeDocument}
               />
             ) : (
               <QuestionFlowPage
@@ -3187,6 +3309,9 @@ function App() {
                 DownPaymentAssistanceList={DownPaymentAssistanceList}
                 CreditScoreExplanation={CreditScoreExplanation}
                 getLocationsLabel={getLocationsLabel}
+                documents={documents}
+                onUploadDocuments={uploadDocuments}
+                onRemoveDocument={removeDocument}
               />
             )}
 

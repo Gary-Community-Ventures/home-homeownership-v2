@@ -1,8 +1,92 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Printer, X } from "lucide-react";
+import { Building2, Check, CheckCircle2, Clock, Printer, Send, X } from "lucide-react";
 import { ContactCard } from "@/components/home/ContactCard";
 import { WalkingPersonSvg } from "@/components/home/HomeVisuals";
+import { DocumentUploadCard } from "@/components/home/DocumentUploadCard";
+import type { DocumentCategory, DocumentRecord } from "@/App";
+
+const IDF_DOCUMENT_LABELS: Record<string, string> = {
+  income: "Income (paystub)",
+  assets: "Savings / asset statement",
+  giftLetter: "Gift letter",
+  credit: "Credit report",
+  firstTimeBuyer: "First-time buyer proof",
+  firstGeneration: "First-generation buyer affidavit",
+  disability: "Disability documentation",
+  veteran: "Veteran documentation",
+  employer: "Employer / workforce letter",
+  education: "Homebuyer education certificate",
+  preApproval: "Lender pre-approval letter",
+  selfId: "Self-identification form",
+};
+
+const OTHER_DOCUMENTS: { category: DocumentCategory; title: string; verifiedTitle: string; description: string; verifiedDescription: string; uploadLabel: string }[] = [
+  {
+    category: "firstTimeBuyer",
+    title: "First-time buyer proof",
+    verifiedTitle: "First-time buyer status verified",
+    description: "Most assistance programs require this — usually shown with a few years of tax transcripts.",
+    verifiedDescription: "On file — programs that require first-time buyer status can confirm this without new paperwork.",
+    uploadLabel: "Upload proof",
+  },
+  {
+    category: "firstGeneration",
+    title: "First-generation buyer affidavit",
+    verifiedTitle: "First-generation status verified",
+    description: "Needed for programs like CHFA FirstGeneration that prioritize buyers whose parents haven't owned a home.",
+    verifiedDescription: "On file for programs that prioritize first-generation buyers.",
+    uploadLabel: "Upload affidavit",
+  },
+  {
+    category: "disability",
+    title: "Disability documentation",
+    verifiedTitle: "Disability documentation verified",
+    description: "Required for programs like CHFA HomeAccess or CHAC's disability path.",
+    verifiedDescription: "On file for disability-specific assistance programs.",
+    uploadLabel: "Upload documentation",
+  },
+  {
+    category: "veteran",
+    title: "Veteran documentation (DD-214)",
+    verifiedTitle: "Veteran status verified",
+    description: "Unlocks veteran-specific exceptions on a few programs.",
+    verifiedDescription: "On file for programs with veteran exceptions.",
+    uploadLabel: "Upload DD-214",
+  },
+  {
+    category: "employer",
+    title: "Employer or workforce verification letter",
+    verifiedTitle: "Employer verification confirmed",
+    description: "Needed for local workforce programs tied to a specific employer, county, or service area.",
+    verifiedDescription: "On file for workforce-restricted assistance programs.",
+    uploadLabel: "Upload letter",
+  },
+  {
+    category: "education",
+    title: "Homebuyer education certificate",
+    verifiedTitle: "Education certificate verified",
+    description: "A short course required by many DPA programs before closing — often free through a housing counselor.",
+    verifiedDescription: "On file — programs that require homebuyer education can confirm you've completed it.",
+    uploadLabel: "Upload certificate",
+  },
+  {
+    category: "preApproval",
+    title: "Lender pre-approval letter",
+    verifiedTitle: "Pre-approval on file",
+    description: "You'll get this once you connect with a lender below — add it here when you have it.",
+    verifiedDescription: "Your realtor and any program you apply to can reference this pre-approval.",
+    uploadLabel: "Upload pre-approval letter",
+  },
+  {
+    category: "selfId",
+    title: "Program self-identification form",
+    verifiedTitle: "Self-identification on file",
+    description: "A few programs (like the Dearfield Fund) require a self-identification form as part of eligibility.",
+    verifiedDescription: "On file for programs that require self-identification.",
+    uploadLabel: "Upload form",
+  },
+];
 
 type Contact = Parameters<typeof ContactCard>[0]["contact"];
 
@@ -86,6 +170,9 @@ export function SummaryNextStepsPage({
   onUpdateStep,
   onFindLender,
   onFindRealtor,
+  documents,
+  onUploadDocuments,
+  onRemoveDocument,
 }: {
   answers: any;
   result: any;
@@ -101,8 +188,14 @@ export function SummaryNextStepsPage({
   onUpdateStep: (step: UpdateStepKey) => void;
   onFindLender: () => void;
   onFindRealtor: () => void;
+  documents: DocumentRecord[];
+  onUploadDocuments: (category: DocumentCategory, files: FileList) => void;
+  onRemoveDocument: (id: string) => void;
 }) {
   const [questionnaireType, setQuestionnaireType] = useState<"lender" | "realtor" | null>(null);
+  const [showIdfHandoff, setShowIdfHandoff] = useState(false);
+  const [idfSubmitted, setIdfSubmitted] = useState(false);
+  const [showBrowseOptions, setShowBrowseOptions] = useState(false);
   const program = getAssistanceProgram(answers.assistanceProgram);
   const selectedAffordableProgram = result.selectedAffordablePrograms[0];
   const bedroomsLabel = answers.bedrooms === 0 ? "empty lot" : `${answers.bedrooms} bedroom${answers.bedrooms === 1 ? "" : "s"}`;
@@ -114,6 +207,8 @@ export function SummaryNextStepsPage({
   const downPaymentCovered = Math.min(result.savingsTarget, result.savings);
   const incomeFrequencyLabel = incomeFrequencyLabels[answers.incomeFrequency] ?? "annual";
   const modeledHomeLabel = `${bedroomsLabel} in ${getLocationsLabel([result.modeledLocation])}`;
+  const closingCosts = Math.max(0, result.savingsDeductions ?? 0);
+  const closingCostPercentOfPrice = result.estimatedPrice > 0 ? Math.round((closingCosts / result.estimatedPrice) * 1000) / 10 : 0;
   const summaryItems: { label: string; value: string; step: UpdateStepKey }[] = [
     { label: "Location + home target", value: `${bedroomsLabel} in ${getLocationsLabel(answers.location)}`, step: "bedrooms" },
     { label: "Income", value: answers.income === "" ? "Not entered" : `${formatCurrency(answers.income)} annual (${incomeFrequencyLabel} entry)`, step: "income" },
@@ -132,6 +227,12 @@ export function SummaryNextStepsPage({
   const isClose = score >= 50 && score < 80;
   // The lower of the two readiness scores is the bigger constraint.
   const limitingFactor: "income" | "cash" = incomeProgress <= downPaymentProgress ? "income" : "cash";
+  // At 50%+ readiness, a warm handoff to a real lender partner is worth offering front and center;
+  // below that, exploring lenders/realtors independently is still the more honest next step.
+  const isGoodPosition = score >= 50;
+  const verifiedDocuments = documents.filter((doc) => doc.status === "verified");
+  const assistanceProgramLabel = selectedAffordableProgram ? selectedAffordableProgram.name : program.title;
+  const isRequestingAssistance = Boolean(selectedAffordableProgram) || answers.assistanceProgram !== "none";
   const readinessHeadline = isReady
     ? "You look ready to buy this home"
     : isClose
@@ -249,6 +350,42 @@ export function SummaryNextStepsPage({
         </div>
       </div>
 
+      {isGoodPosition ? (
+        <div className="rounded-3xl border-2 border-[#12233f]/15 bg-gradient-to-br from-[#12233f]/5 to-white/90 p-4">
+          <div className="flex items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#12233f] text-white shadow-md" aria-hidden="true">
+              <Building2 className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#12233f]">Your Backpack makes this fast</p>
+              <h3 className="mt-1 text-xl font-black tracking-tight">
+                Want to seek your pre-approval and automatically apply for down payment assistance?
+              </h3>
+            </div>
+          </div>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            Your Backpack already has your answers saved
+            {verifiedDocuments.length > 0 ? ` and ${verifiedDocuments.length} document${verifiedDocuments.length === 1 ? "" : "s"} verified` : ""} —
+            Impact Development Fund (IDF) can pull this instead of asking you to start from scratch.
+          </p>
+          <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-bold text-[#12233f]">
+            <Clock className="h-4 w-4" aria-hidden="true" />
+            Most applications take 15–20 minutes. Yours takes about 2.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setIdfSubmitted(false);
+              setShowIdfHandoff(true);
+            }}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#12233f] px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#193154] hover:shadow-lg"
+          >
+            Start with Impact Development Fund
+            <Send className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      ) : null}
+
       <div className="rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">The home you're modeling</p>
         <div className="mt-4 rounded-3xl border bg-white/75 p-4">
@@ -261,6 +398,9 @@ export function SummaryNextStepsPage({
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Upfront cash needed</p>
               <p className="mt-1 font-black tracking-tight">{formatCurrency(result.savingsTarget)}</p>
+              <p className="mt-0.5 text-[0.7rem] leading-4 text-muted-foreground">
+                Includes {formatCurrency(closingCosts)} in closing costs (~{closingCostPercentOfPrice}% of price)
+              </p>
             </div>
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Monthly payment</p>
@@ -304,49 +444,246 @@ export function SummaryNextStepsPage({
         </div>
       </div>
 
-      <div className="space-y-3">
-        <div className="rounded-3xl border bg-white/75 p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Next steps</p>
-              <h3 className="mt-1 text-xl font-black tracking-tight">Find a lender</h3>
-            </div>
-            <button type="button" onClick={() => setQuestionnaireType("lender")} className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              Show questionnaire
-            </button>
-          </div>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">Get a written pre-approval and confirm they work with your chosen program.</p>
-          <div className="mt-4 divide-y divide-border/70">
-            <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Lender options to contact</p>
-              <button type="button" onClick={onFindLender} className="text-xs font-bold text-primary underline-offset-4 hover:underline">See all</button>
-            </div>
-            {lenderContacts.map((contact) => <ContactCard key={contact.id} contact={contact} compact />)}
-          </div>
-        </div>
-
-        <div className="rounded-3xl border bg-white/75 p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Next steps</p>
-              <h3 className="mt-1 text-xl font-black tracking-tight">Find a realtor</h3>
-            </div>
-            <button type="button" onClick={() => setQuestionnaireType("realtor")} className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              Show questionnaire
-            </button>
-          </div>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">Choose one who knows your area and first-time buyer programs.</p>
-          <div className="mt-4 divide-y divide-border/70">
-            <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Realtor options to contact</p>
-              <button type="button" onClick={onFindRealtor} className="text-xs font-bold text-primary underline-offset-4 hover:underline">See all</button>
-            </div>
-            {realtorContacts.map((contact) => <ContactCard key={contact.id} contact={contact} compact />)}
-          </div>
+      <div className="rounded-3xl border bg-white/60 p-4">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Before you connect below</p>
+        <h3 className="mt-1 text-xl font-black tracking-tight">Other documents your lender may ask for</h3>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Income, savings, and credit are already covered earlier in your Backpack. These depend on which programs and
+          eligibility paths you're exploring — add what applies to you now, or bring the rest to your first conversation.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {OTHER_DOCUMENTS.map((doc) => (
+            <DocumentUploadCard
+              key={doc.category}
+              category={doc.category}
+              title={doc.title}
+              verifiedTitle={doc.verifiedTitle}
+              description={doc.description}
+              verifiedDescription={doc.verifiedDescription}
+              uploadLabel={doc.uploadLabel}
+              documents={documents}
+              onUpload={onUploadDocuments}
+              onRemove={onRemoveDocument}
+              compact
+            />
+          ))}
         </div>
       </div>
 
+      {!isGoodPosition ? (
+        <div className="space-y-3">
+          <div className="rounded-3xl border bg-white/75 p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Next steps</p>
+                <h3 className="mt-1 text-xl font-black tracking-tight">Find a lender</h3>
+              </div>
+              <button type="button" onClick={() => setQuestionnaireType("lender")} className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                Show questionnaire
+              </button>
+            </div>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">Get a written pre-approval and confirm they work with your chosen program.</p>
+            <div className="mt-4 divide-y divide-border/70">
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Lender options to contact</p>
+                <button type="button" onClick={onFindLender} className="text-xs font-bold text-primary underline-offset-4 hover:underline">See all</button>
+              </div>
+              {lenderContacts.map((contact) => <ContactCard key={contact.id} contact={contact} compact />)}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border bg-white/75 p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Next steps</p>
+                <h3 className="mt-1 text-xl font-black tracking-tight">Find a realtor</h3>
+              </div>
+              <button type="button" onClick={() => setQuestionnaireType("realtor")} className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                Show questionnaire
+              </button>
+            </div>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">Choose one who knows your area and first-time buyer programs.</p>
+            <div className="mt-4 divide-y divide-border/70">
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Realtor options to contact</p>
+                <button type="button" onClick={onFindRealtor} className="text-xs font-bold text-primary underline-offset-4 hover:underline">See all</button>
+              </div>
+              {realtorContacts.map((contact) => <ContactCard key={contact.id} contact={contact} compact />)}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-3xl border bg-white/50 p-4">
+          <button
+            type="button"
+            onClick={() => setShowBrowseOptions((current) => !current)}
+            className="flex w-full items-center justify-between gap-3 text-left"
+          >
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Prefer to browse on your own?</p>
+              <p className="mt-1 text-sm text-muted-foreground">You can still explore independent lenders and realtors instead of IDF.</p>
+            </div>
+            <span className="shrink-0 text-xs font-bold text-muted-foreground underline-offset-4 hover:underline">
+              {showBrowseOptions ? "Hide" : "Show options"}
+            </span>
+          </button>
+          {showBrowseOptions ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={onFindLender}
+                className="rounded-full bg-secondary px-3.5 py-2 text-xs font-bold text-secondary-foreground transition hover:bg-secondary/80"
+              >
+                Browse lenders
+              </button>
+              <button
+                type="button"
+                onClick={onFindRealtor}
+                className="rounded-full bg-secondary px-3.5 py-2 text-xs font-bold text-secondary-foreground transition hover:bg-secondary/80"
+              >
+                Browse realtors
+              </button>
+            </div>
+          ) : null}
+        </div>
+      )}
+
       {questionnaireModal && typeof document !== "undefined" ? createPortal(questionnaireModal, document.body) : null}
+      {showIdfHandoff && typeof document !== "undefined"
+        ? createPortal(
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-3" role="dialog" aria-modal="true" aria-labelledby="idf-title">
+              <button type="button" className="absolute inset-0 cursor-default" onClick={() => setShowIdfHandoff(false)} aria-label="Close" />
+              <div className="relative flex max-h-[calc(100vh-1.5rem)] w-full max-w-xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+                <div className="flex items-center gap-2 border-b bg-[#f3f1ea] px-4 py-2.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#e05d44]" aria-hidden="true" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#e0b44d]" aria-hidden="true" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#4da35e]" aria-hidden="true" />
+                  <span className="ml-2 truncate rounded-full bg-white px-3 py-1 text-[0.7rem] font-semibold text-muted-foreground shadow-inner">
+                    partner.impactdevelopmentfund.org/apply
+                  </span>
+                </div>
+
+                <div className="no-scrollbar overflow-y-auto">
+                  <div className="bg-[#12233f] px-5 py-4 text-white">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15" aria-hidden="true">
+                        <Building2 className="h-5 w-5" />
+                      </span>
+                      <div>
+                        <p id="idf-title" className="text-sm font-black tracking-tight">Impact Development Fund</p>
+                        <p className="text-[0.7rem] font-semibold text-white/70">Pre-approval + down payment assistance</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {idfSubmitted ? (
+                    <div className="space-y-4 p-5 text-center">
+                      <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#12233f]/10 text-[#12233f]">
+                        <CheckCircle2 className="h-8 w-8" />
+                      </span>
+                      <div>
+                        <h3 className="text-xl font-black tracking-tight">Sent to Impact Development Fund</h3>
+                        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                          {isRequestingAssistance ? (
+                            <>
+                              They'll follow up within 1 business day to confirm your pre-approval and your {assistanceProgramLabel} application.
+                            </>
+                          ) : (
+                            <>They'll follow up within 1 business day to confirm your pre-approval.</>
+                          )}{" "}
+                          Nothing else to fill out for now.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowIdfHandoff(false)}
+                        className="rounded-full bg-[#12233f] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#193154]"
+                      >
+                        Done
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 p-5">
+                      <div className="flex items-start gap-2.5 rounded-2xl bg-[#12233f]/5 p-3">
+                        <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[#12233f]" aria-hidden="true" />
+                        <p className="text-xs leading-5 text-[#12233f]">
+                          Most applicants spend 15–20 minutes here. Because your Backpack already covers this, it's
+                          pre-filled below — expect about 2 minutes.
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-[0.7rem] font-bold uppercase tracking-[0.16em] text-muted-foreground">From your Backpack</p>
+                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                          <div className="rounded-2xl border bg-muted/30 px-3 py-2">
+                            <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted-foreground">Target home</p>
+                            <p className="mt-0.5 text-sm font-black capitalize tracking-tight">{modeledHomeLabel}</p>
+                          </div>
+                          <div className="rounded-2xl border bg-muted/30 px-3 py-2">
+                            <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted-foreground">Annual income</p>
+                            <p className="mt-0.5 text-sm font-black tracking-tight">{answers.income === "" ? "Not entered" : formatCurrency(answers.income)}</p>
+                          </div>
+                          <div className="rounded-2xl border bg-muted/30 px-3 py-2">
+                            <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted-foreground">Savings</p>
+                            <p className="mt-0.5 text-sm font-black tracking-tight">{answers.savings === "" ? "Not entered" : formatCurrency(answers.savings)}</p>
+                          </div>
+                          <div className="rounded-2xl border bg-muted/30 px-3 py-2">
+                            <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted-foreground">Credit</p>
+                            <p className="mt-0.5 text-sm font-black tracking-tight">{getCreditScoreOption(answers.creditScore).range}</p>
+                          </div>
+                          <div className="rounded-2xl border bg-muted/30 px-3 py-2 sm:col-span-2">
+                            <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted-foreground">Requesting</p>
+                            <p className="mt-0.5 text-sm font-black tracking-tight">{assistanceProgramLabel}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-[0.7rem] font-bold uppercase tracking-[0.16em] text-muted-foreground">Documents attached</p>
+                        {verifiedDocuments.length ? (
+                          <div className="mt-2 space-y-1.5">
+                            {verifiedDocuments.map((doc) => (
+                              <div key={doc.id} className="flex items-center gap-2 rounded-xl bg-muted/30 px-3 py-1.5">
+                                <Check className="h-3.5 w-3.5 shrink-0 text-[#12233f]" aria-hidden="true" />
+                                <p className="truncate text-xs font-bold">{IDF_DOCUMENT_LABELS[doc.category] ?? doc.category}</p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="mt-2 text-xs italic text-muted-foreground">
+                            None verified yet — IDF may ask you for these directly instead.
+                          </p>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setIdfSubmitted(true)}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#12233f] px-4 py-3 text-sm font-bold text-white shadow-md transition hover:bg-[#193154]"
+                      >
+                        <Send className="h-4 w-4" aria-hidden="true" />
+                        Submit application to IDF
+                      </button>
+                      <p className="text-center text-[0.65rem] leading-5 text-muted-foreground">
+                        Concept mockup of a warm handoff to a real lender partner — no application is actually sent.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowIdfHandoff(false)}
+                  className="absolute right-3 top-2.5 rounded-full bg-white/15 p-1.5 text-white transition hover:bg-white/25"
+                  aria-label="Close"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
