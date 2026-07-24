@@ -19,6 +19,8 @@ export function SavingsQuestionPage({ currentQuestion, answerValue, updateAnswer
   const sliderMax = Math.min(rangeMax, Math.max(50000, Math.ceil((target * 2) / 10000) * 10000));
   const sliderValue = Math.min(Math.max(savings, rangeMin), sliderMax);
   const goalPercent = sliderMax > 0 ? Math.min(100, (target / sliderMax) * 100) : 0;
+  const closingCosts = Math.max(0, result?.savingsDeductions ?? 0);
+  const closingCostPercentOfPrice = (result?.estimatedPrice ?? 0) > 0 ? Math.round((closingCosts / result.estimatedPrice) * 1000) / 10 : 0;
 
   return (
     <div className="space-y-5">
@@ -64,6 +66,9 @@ export function SavingsQuestionPage({ currentQuestion, answerValue, updateAnswer
               <span>{formatCurrency(0)}</span>
               <span>{formatCurrency(sliderMax)}</span>
             </div>
+            <p className="mt-1 text-[0.7rem] leading-4 text-muted-foreground">
+              That goal includes {formatCurrency(closingCosts)} in closing costs (~{closingCostPercentOfPrice}% of price)
+            </p>
           </div>
 
           {isCovered ? (

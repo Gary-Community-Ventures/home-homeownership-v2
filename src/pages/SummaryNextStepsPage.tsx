@@ -207,6 +207,8 @@ export function SummaryNextStepsPage({
   const downPaymentCovered = Math.min(result.savingsTarget, result.savings);
   const incomeFrequencyLabel = incomeFrequencyLabels[answers.incomeFrequency] ?? "annual";
   const modeledHomeLabel = `${bedroomsLabel} in ${getLocationsLabel([result.modeledLocation])}`;
+  const closingCosts = Math.max(0, result.savingsDeductions ?? 0);
+  const closingCostPercentOfPrice = result.estimatedPrice > 0 ? Math.round((closingCosts / result.estimatedPrice) * 1000) / 10 : 0;
   const summaryItems: { label: string; value: string; step: UpdateStepKey }[] = [
     { label: "Location + home target", value: `${bedroomsLabel} in ${getLocationsLabel(answers.location)}`, step: "bedrooms" },
     { label: "Income", value: answers.income === "" ? "Not entered" : `${formatCurrency(answers.income)} annual (${incomeFrequencyLabel} entry)`, step: "income" },
@@ -396,6 +398,9 @@ export function SummaryNextStepsPage({
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Upfront cash needed</p>
               <p className="mt-1 font-black tracking-tight">{formatCurrency(result.savingsTarget)}</p>
+              <p className="mt-0.5 text-[0.7rem] leading-4 text-muted-foreground">
+                Includes {formatCurrency(closingCosts)} in closing costs (~{closingCostPercentOfPrice}% of price)
+              </p>
             </div>
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Monthly payment</p>
