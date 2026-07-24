@@ -1864,7 +1864,7 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
       {
         title: "Local housing programs",
         description: "Look for county or city first-time buyer assistance, down-payment grants, and income-restricted ownership options.",
-        url: "https://www.hud.gov/states/colorado/homeownership/buyingprgms",
+        url: "https://www.hud.gov/states/colorado",
       },
     ];
   }
@@ -1874,12 +1874,12 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
       {
         title: "Payment-to-income target",
         description: `This guide estimates housing costs at ${Math.round(result.housingRatio * 100)}% of income; many buyers use 30% as a planning target with room up to 36% depending on the loan and budget.`,
-        url: "https://www.consumerfinance.gov/owning-a-home/prepare/mortgage-affordability/",
+        url: "https://www.consumerfinance.gov/owning-a-home/prepare/figure-out-how-much-you-want-to-spend/",
       },
       {
         title: "Budget cushion",
         description: "Set aside room for utilities, maintenance, HOA dues, insurance changes, and emergency savings before stretching for a payment.",
-        url: "https://www.consumerfinance.gov/owning-a-home/prepare/check-your-spending/",
+        url: "https://www.consumerfinance.gov/owning-a-home/prepare/determine-your-down-payment/",
       },
     ];
   }
@@ -1894,7 +1894,7 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
       {
         title: "Right-size your search",
         description: "Try one bedroom fewer or a flexible office/guest room setup to see how much the target home size changes affordability.",
-        url: "https://www.consumerfinance.gov/owning-a-home/prepare/decide-how-much-to-spend/",
+        url: "https://www.consumerfinance.gov/owning-a-home/prepare/decide-how-much-you-want-spend/",
       },
     ];
   }
@@ -1904,12 +1904,12 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
       {
         title: "Down payment planning",
         description: `For this modeled home size, the estimated 3.5% down payment is ${formatCurrency(result.targetDownPayment)} before any assistance is applied.`,
-        url: "https://www.consumerfinance.gov/owning-a-home/prepare/decide-how-much-to-spend/",
+        url: "https://www.consumerfinance.gov/owning-a-home/prepare/determine-your-down-payment/",
       },
       {
         title: "Saving for upfront costs",
         description: "Plan for closing costs and reserves in addition to the down payment so the purchase does not use every available dollar.",
-        url: "https://www.consumerfinance.gov/owning-a-home/prepare/check-your-spending/",
+        url: "https://www.consumerfinance.gov/owning-a-home/explore/learn-about-loan-costs/",
       },
     ];
   }
@@ -1921,7 +1921,7 @@ function getQuestionResources(question: Question, answers: Answers, result: Retu
       {
         title: `${program.title} fit check`,
         description: `This selection estimates ${formatCurrency(result.assistanceAmount)} in help toward a ${formatCurrency(result.targetDownPayment)} down payment for the modeled home size.`,
-        url: assistanceProgramLinks[program.id] ?? "https://www.hud.gov/states/colorado/homeownership/buyingprgms",
+        url: assistanceProgramLinks[program.id] ?? "https://www.hud.gov/states/colorado",
       },
     ];
   }
