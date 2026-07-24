@@ -96,6 +96,8 @@ type AssistanceProgram = {
   minimumContributionAssistanceRate?: number;
   bestFor: string;
   description: string;
+  /** Hard annual household income cap in dollars, where the program publishes one (vs. a %AMI band that varies by county and isn't modeled here). */
+  incomeLimit?: number;
 };
 
 type Contact = {
@@ -291,6 +293,7 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     minimumContribution: 1000,
     bestFor: "Statewide buyers, not first-time only",
     description: "CHFA first mortgage paired with a DPA second or grant. 620 minimum credit score, $1,000 minimum contribution, gifts allowed, $174,440 statewide income limit.",
+    incomeLimit: 174440,
   },
   {
     id: "chfa-firstgeneration",
@@ -347,6 +350,7 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     assistanceRate: 0.06,
     bestFor: "Denver metro and approved counties",
     description: "Second mortgage through approved MetroDPA lenders. Not limited to first-time buyers, 620+ credit score, $216,000 income limit, approved metro-area counties only.",
+    incomeLimit: 216000,
   },
   {
     id: "aurora-prop-123",
@@ -489,6 +493,7 @@ const downPaymentAssistancePrograms: AssistanceProgram[] = [
     minimumContribution: 1000,
     bestFor: "Statewide buyers, broad loan types",
     description: "CHFA zero-percent silent second with no monthly payments. Not limited to first-time buyers, $174,440 statewide income limit, $1,000 contribution.",
+    incomeLimit: 174440,
   },
   {
     id: "chenoa-fund-fha",
@@ -1592,6 +1597,16 @@ function programMatchesEligibility(program: AssistanceProgram, eligibility: Elig
   return true;
 }
 
+// Only enforced where a program publishes a hard dollar income cap (vs. a %AMI band, which
+// varies by county and isn't modeled here) — so this only ever narrows programs we're
+// confident are actually out of reach, never programs we're just unsure about.
+function programMatchesIncome(program: AssistanceProgram, income: number) {
+  if (!program.incomeLimit) return true;
+  if (!Number.isFinite(income) || income <= 0) return true;
+
+  return income <= program.incomeLimit;
+}
+
 function estimateHousingForBedrooms(bedrooms: number, location: string) {
   const bedroomCount = Math.max(0, Math.min(8, Math.round(bedrooms || 0)));
   const locationMultiplier = getLocationMultiplier(location);
@@ -1715,6 +1730,7 @@ function calculateScore(answers: Answers, answeredKeys: QuestionKey[], modeledLo
     affordabilityRatio,
     targetDownPayment,
     cashDownPaymentTarget,
+    income,
     savings,
     savingsDeductions,
     savingsTarget,
@@ -2247,6 +2263,7 @@ function DownPaymentAssistanceList({
   const locationFilteredPrograms = selectableAssistancePrograms.filter((program) => programMatchesAnyCounty(program, countyNames));
   const filteredPrograms = locationFilteredPrograms
     .filter((program) => programMatchesEligibility(program, eligibility))
+    .filter((program) => programMatchesIncome(program, result.income))
     .sort((first, second) => getAssistanceFit(second, result.estimatedPrice, targetDownPayment).score - getAssistanceFit(first, result.estimatedPrice, targetDownPayment).score);
   const recommendedPrograms = filteredPrograms.slice(0, 2);
   const otherPrograms = filteredPrograms.slice(2);
