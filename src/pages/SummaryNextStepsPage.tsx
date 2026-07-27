@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Building2, Check, CheckCircle2, Clock, Printer, Send, X } from "lucide-react";
+import { ArrowRight, Building2, Check, CheckCircle2, Clock, Printer, Send, X } from "lucide-react";
 import { ContactCard } from "@/components/home/ContactCard";
 import { WalkingPersonSvg } from "@/components/home/HomeVisuals";
 import { DocumentUploadCard } from "@/components/home/DocumentUploadCard";
@@ -194,6 +194,7 @@ export function SummaryNextStepsPage({
 }) {
   const [questionnaireType, setQuestionnaireType] = useState<"lender" | "realtor" | null>(null);
   const [showIdfHandoff, setShowIdfHandoff] = useState(false);
+  const [showDocumentsChecklist, setShowDocumentsChecklist] = useState(false);
   const [idfSubmitted, setIdfSubmitted] = useState(false);
   const [showBrowseOptions, setShowBrowseOptions] = useState(false);
   const program = getAssistanceProgram(answers.assistanceProgram);
@@ -231,6 +232,8 @@ export function SummaryNextStepsPage({
   // below that, exploring lenders/realtors independently is still the more honest next step.
   const isGoodPosition = score >= 50;
   const verifiedDocuments = documents.filter((doc) => doc.status === "verified");
+  const otherDocumentCategories = new Set(OTHER_DOCUMENTS.map((doc) => doc.category));
+  const otherDocumentsAddedCount = new Set(documents.filter((doc) => otherDocumentCategories.has(doc.category)).map((doc) => doc.category)).size;
   const assistanceProgramLabel = selectedAffordableProgram ? selectedAffordableProgram.name : program.title;
   const isRequestingAssistance = Boolean(selectedAffordableProgram) || answers.assistanceProgram !== "none";
   const readinessHeadline = isReady
@@ -317,6 +320,51 @@ export function SummaryNextStepsPage({
             Print questionnaire
           </button>
           <button type="button" onClick={() => setQuestionnaireType(null)} className="rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  const documentsChecklistModal = showDocumentsChecklist ? (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-3" role="dialog" aria-modal="true" aria-labelledby="documents-checklist-title">
+      <button type="button" className="absolute inset-0 cursor-default" onClick={() => setShowDocumentsChecklist(false)} aria-label="Close checklist" />
+      <div className="relative flex max-h-[calc(100vh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-border/70 px-5 py-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Optional, before you connect</p>
+            <h3 id="documents-checklist-title" className="mt-1 text-xl font-black tracking-tight">Other documents your lender may ask for</h3>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              Income, savings, and credit are already covered earlier in your Backpack. These depend on which programs and
+              eligibility paths you're exploring — add what applies to you now, or bring the rest to your first conversation.
+            </p>
+          </div>
+          <button type="button" onClick={() => setShowDocumentsChecklist(false)} className="shrink-0 rounded-full p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground" aria-label="Close checklist">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="no-scrollbar overflow-y-auto px-5 py-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {OTHER_DOCUMENTS.map((doc) => (
+              <DocumentUploadCard
+                key={doc.category}
+                category={doc.category}
+                title={doc.title}
+                verifiedTitle={doc.verifiedTitle}
+                description={doc.description}
+                verifiedDescription={doc.verifiedDescription}
+                uploadLabel={doc.uploadLabel}
+                documents={documents}
+                onUpload={onUploadDocuments}
+                onRemove={onRemoveDocument}
+                compact
+              />
+            ))}
+          </div>
+        </div>
+        <div className="border-t border-border/70 px-5 py-4">
+          <button type="button" onClick={() => setShowDocumentsChecklist(false)} className="w-full rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             Done
           </button>
         </div>
@@ -444,31 +492,24 @@ export function SummaryNextStepsPage({
         </div>
       </div>
 
-      <div className="rounded-3xl border bg-white/60 p-4">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Before you connect below</p>
-        <h3 className="mt-1 text-xl font-black tracking-tight">Other documents your lender may ask for</h3>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Income, savings, and credit are already covered earlier in your Backpack. These depend on which programs and
-          eligibility paths you're exploring — add what applies to you now, or bring the rest to your first conversation.
-        </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {OTHER_DOCUMENTS.map((doc) => (
-            <DocumentUploadCard
-              key={doc.category}
-              category={doc.category}
-              title={doc.title}
-              verifiedTitle={doc.verifiedTitle}
-              description={doc.description}
-              verifiedDescription={doc.verifiedDescription}
-              uploadLabel={doc.uploadLabel}
-              documents={documents}
-              onUpload={onUploadDocuments}
-              onRemove={onRemoveDocument}
-              compact
-            />
-          ))}
+      <button
+        type="button"
+        onClick={() => setShowDocumentsChecklist(true)}
+        className="flex w-full items-center justify-between gap-4 rounded-3xl border bg-white/60 p-4 text-left transition hover:border-primary/30 hover:bg-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <div className="min-w-0">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Next step</p>
+          <h3 className="mt-1 text-base font-black tracking-tight">Other documents your lender may ask for</h3>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Optional — first-time buyer proof, homebuyer education, and more.
+            {otherDocumentsAddedCount > 0 ? ` ${otherDocumentsAddedCount} of ${OTHER_DOCUMENTS.length} added.` : ""}
+          </p>
         </div>
-      </div>
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-secondary px-3.5 py-2 text-xs font-bold text-secondary-foreground">
+          View checklist
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+        </span>
+      </button>
 
       {!isGoodPosition ? (
         <div className="space-y-3">
@@ -549,6 +590,7 @@ export function SummaryNextStepsPage({
       )}
 
       {questionnaireModal && typeof document !== "undefined" ? createPortal(questionnaireModal, document.body) : null}
+      {documentsChecklistModal && typeof document !== "undefined" ? createPortal(documentsChecklistModal, document.body) : null}
       {showIdfHandoff && typeof document !== "undefined"
         ? createPortal(
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-3" role="dialog" aria-modal="true" aria-labelledby="idf-title">
