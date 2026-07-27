@@ -1,6 +1,7 @@
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Building2, Check, CheckCircle2, Clock, Printer, Send, X } from "lucide-react";
+import { Building2, Check, CheckCircle2, ChevronDown, Clock, Printer, Send, X } from "lucide-react";
 import { ContactCard } from "@/components/home/ContactCard";
 import { WalkingPersonSvg } from "@/components/home/HomeVisuals";
 import { DocumentUploadCard } from "@/components/home/DocumentUploadCard";
@@ -195,7 +196,6 @@ export function SummaryNextStepsPage({
   const [questionnaireType, setQuestionnaireType] = useState<"lender" | "realtor" | null>(null);
   const [showIdfHandoff, setShowIdfHandoff] = useState(false);
   const [idfSubmitted, setIdfSubmitted] = useState(false);
-  const [showBrowseOptions, setShowBrowseOptions] = useState(false);
   const program = getAssistanceProgram(answers.assistanceProgram);
   const selectedAffordableProgram = result.selectedAffordablePrograms[0];
   const bedroomsLabel = answers.bedrooms === 0 ? "empty lot" : `${answers.bedrooms} bedroom${answers.bedrooms === 1 ? "" : "s"}`;
@@ -227,38 +227,82 @@ export function SummaryNextStepsPage({
   const isClose = score >= 50 && score < 80;
   // The lower of the two readiness scores is the bigger constraint.
   const limitingFactor: "income" | "cash" = incomeProgress <= downPaymentProgress ? "income" : "cash";
-  // At 50%+ readiness, a warm handoff to a real lender partner is worth offering front and center;
-  // below that, exploring lenders/realtors independently is still the more honest next step.
-  const isGoodPosition = score >= 50;
   const verifiedDocuments = documents.filter((doc) => doc.status === "verified");
+  const otherDocumentCategories = new Set(OTHER_DOCUMENTS.map((doc) => doc.category));
+  const otherDocumentsAddedCount = new Set(documents.filter((doc) => otherDocumentCategories.has(doc.category)).map((doc) => doc.category)).size;
   const assistanceProgramLabel = selectedAffordableProgram ? selectedAffordableProgram.name : program.title;
   const isRequestingAssistance = Boolean(selectedAffordableProgram) || answers.assistanceProgram !== "none";
+  // The IDF handoff is offered to everyone, but how confidently we can promise a fast, seamless
+  // pre-qualification depends on how much of the Backpack is actually in place.
+  const idfReadinessTier: "ready" | "close" | "early" = isReady ? "ready" : isClose ? "close" : "early";
+  const idfCopy = {
+    ready: {
+      badge: "Recommended next step",
+      body: `Your Backpack already has everything Impact Development Fund (IDF) typically asks for${verifiedDocuments.length > 0 ? `, including ${verifiedDocuments.length} verified document${verifiedDocuments.length === 1 ? "" : "s"}` : ""} — pre-qualification from here should be fast and largely seamless.`,
+      timeline: "Most applications take 15–20 minutes. Yours takes about 2.",
+    },
+    close: {
+      badge: "Worth starting now",
+      body: `Your Backpack already covers most of what IDF needs${verifiedDocuments.length > 0 ? `, including ${verifiedDocuments.length} verified document${verifiedDocuments.length === 1 ? "" : "s"}` : ""} — pre-qualification should move noticeably faster than starting cold, even with a few details still to confirm.`,
+      timeline: "Most applications take 15–20 minutes. With what's already saved, yours should be quicker.",
+    },
+    early: {
+      badge: "Get started early",
+      body: "You're still early, but IDF can begin reviewing what's already in your Backpack today. The more you fill in and verify from here, the smoother pre-qualification gets.",
+      timeline: "Most applications take 15–20 minutes — worth starting now, even before every number is final.",
+    },
+  }[idfReadinessTier];
   const readinessHeadline = isReady
     ? "You look ready to buy this home"
     : isClose
       ? "You're getting close to buying this home"
       : "You're still getting ready to buy this home";
-  const readyAnswer = isReady
-    ? "Based on these estimates, buying this home looks realistic. The main step left is to confirm the numbers with a lender before making offers."
-    : isClose
-      ? "Not quite yet for this exact home — but you're within reach. Closing one gap below would get you there."
-      : "Not yet for this specific home. The estimates show a meaningful gap to close first, but you have a clear target to work toward.";
-  const limitingText = isReady
-    ? "Both your income and your savings are close to the targets for this home."
+  const biggestFactorText = isReady
+    ? "Both your income and savings are close to the targets — confirming these numbers with a lender is the main remaining step."
     : limitingFactor === "income"
-      ? `Monthly payment is the bigger hurdle. The estimated ${formatCurrency(result.monthlyPayment)}/mo is about ${formatCurrency(monthlyShortfall)}/mo above the ${paymentToIncomeTargetPercent}% of income lenders typically look for.`
-      : `Upfront cash is the bigger hurdle. After your savings, you'd still need about ${formatCurrency(cashStillNeeded)} for the down payment and closing costs.`;
-  const reachingTargetText = isReady
-    ? "Confirming these numbers with a lender is the main remaining step."
-    : limitingFactor === "income"
-      ? "Raising income, choosing a lower price, or a lower rate would bring the monthly payment into a sustainable range — the main thing lenders check."
-      : `Covering that ${formatCurrency(cashStillNeeded)} — through more savings or down payment assistance — would let you pay the down payment and closing costs without stretching.`;
+      ? `Monthly payment is the bigger hurdle — the estimated ${formatCurrency(result.monthlyPayment)}/mo is about ${formatCurrency(monthlyShortfall)}/mo above the ${paymentToIncomeTargetPercent}% of income lenders typically look for. Raising income, choosing a lower price, or a lower rate would close that gap.`
+      : `Upfront cash is the bigger hurdle — after your savings, you'd still need about ${formatCurrency(cashStillNeeded)} for the down payment and closing costs. More savings or down payment assistance would close that gap.`;
 
   function UpdateButton({ step }: { step: UpdateStepKey }) {
     return (
       <button type="button" onClick={() => onUpdateStep(step)} className="shrink-0 rounded-full bg-secondary px-3 py-1.5 text-xs font-bold text-secondary-foreground transition hover:bg-secondary/80">
         Update
       </button>
+    );
+  }
+
+  function CollapsibleCard({
+    eyebrow,
+    title,
+    description,
+    defaultExpanded = false,
+    children,
+  }: {
+    eyebrow: string;
+    title: string;
+    description?: string;
+    defaultExpanded?: boolean;
+    children: ReactNode;
+  }) {
+    const [expanded, setExpanded] = useState(defaultExpanded);
+
+    return (
+      <div className="rounded-3xl border bg-white/60 p-4">
+        <button
+          type="button"
+          onClick={() => setExpanded((current) => !current)}
+          className="flex w-full items-start justify-between gap-3 text-left"
+          aria-expanded={expanded}
+        >
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">{eyebrow}</p>
+            <h3 className="mt-1 text-base font-black tracking-tight">{title}</h3>
+            {description ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p> : null}
+          </div>
+          <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden="true" />
+        </button>
+        {expanded ? <div className="mt-4">{children}</div> : null}
+      </div>
     );
   }
 
@@ -337,7 +381,6 @@ export function SummaryNextStepsPage({
             <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">{result.recommendation}</p>
           </div>
         </div>
-        <p className="text-sm leading-6 text-muted-foreground">{readyAnswer}</p>
         <p className="text-sm leading-6 text-muted-foreground">
           <span className="font-bold text-foreground">Why this score:</span> it blends two things — your income covers about{" "}
           <strong className="font-bold text-foreground">{incomeProgress}%</strong> of the estimated monthly payment, and your savings cover about{" "}
@@ -345,46 +388,43 @@ export function SummaryNextStepsPage({
         </p>
         <div className="rounded-2xl border border-primary/20 bg-white/70 p-3">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Biggest factor right now</p>
-          <p className="mt-1 text-sm leading-6 text-foreground">{limitingText}</p>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">{reachingTargetText}</p>
+          <p className="mt-1 text-sm leading-6 text-foreground">{biggestFactorText}</p>
         </div>
       </div>
 
-      {isGoodPosition ? (
-        <div className="rounded-3xl border-2 border-[#12233f]/15 bg-gradient-to-br from-[#12233f]/5 to-white/90 p-4">
-          <div className="flex items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#12233f] text-white shadow-md" aria-hidden="true">
-              <Building2 className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#12233f]">Your Backpack makes this fast</p>
-              <h3 className="mt-1 text-xl font-black tracking-tight">
-                Want to seek your pre-approval and automatically apply for down payment assistance?
-              </h3>
-            </div>
+      <div className="relative overflow-hidden rounded-3xl border-2 border-[#12233f]/25 bg-gradient-to-br from-[#12233f]/10 via-white/95 to-white p-5 shadow-[0_24px_80px_rgba(18,35,63,0.22)] sm:p-6">
+        <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#12233f] via-[#1d3a63] to-[#12233f]" aria-hidden="true" />
+        <span className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-[#12233f] px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-white">
+          {idfCopy.badge}
+        </span>
+        <div className="flex items-start gap-4">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#12233f] text-white shadow-lg" aria-hidden="true">
+            <Building2 className="h-7 w-7" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#12233f]">Your Backpack makes this fast</p>
+            <h3 className="mt-1 text-2xl font-black leading-tight tracking-tight">
+              Want to seek your pre-approval and automatically apply for down payment assistance?
+            </h3>
           </div>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Your Backpack already has your answers saved
-            {verifiedDocuments.length > 0 ? ` and ${verifiedDocuments.length} document${verifiedDocuments.length === 1 ? "" : "s"} verified` : ""} —
-            Impact Development Fund (IDF) can pull this instead of asking you to start from scratch.
-          </p>
-          <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-bold text-[#12233f]">
-            <Clock className="h-4 w-4" aria-hidden="true" />
-            Most applications take 15–20 minutes. Yours takes about 2.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              setIdfSubmitted(false);
-              setShowIdfHandoff(true);
-            }}
-            className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#12233f] px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#193154] hover:shadow-lg"
-          >
-            Start with Impact Development Fund
-            <Send className="h-4 w-4" aria-hidden="true" />
-          </button>
         </div>
-      ) : null}
+        <p className="mt-4 text-sm leading-6 text-muted-foreground">{idfCopy.body}</p>
+        <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-bold text-[#12233f]">
+          <Clock className="h-4 w-4" aria-hidden="true" />
+          {idfCopy.timeline}
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setIdfSubmitted(false);
+            setShowIdfHandoff(true);
+          }}
+          className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#12233f] px-6 py-3.5 text-base font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-[#193154] hover:shadow-xl"
+        >
+          Start with Impact Development Fund
+          <Send className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
 
       <div className="rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">The home you're modeling</p>
@@ -428,30 +468,30 @@ export function SummaryNextStepsPage({
         </div>
       </div>
 
-      <div className="rounded-3xl border bg-white/60 p-4">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Your answers</p>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">Tap Update on any answer to change it and see your readiness recalculate.</p>
-        <div className="mt-2 divide-y divide-border/70">
-        {summaryItems.map((item) => (
-          <div key={item.step} className="flex items-center justify-between gap-4 py-3">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">{item.label}</p>
-              <p className="mt-1 font-black capitalize tracking-tight">{item.value}</p>
+      <CollapsibleCard eyebrow="Your answers" title="Review or update what you entered" description="Tap Update on any answer to change it and see your readiness recalculate.">
+        <div className="divide-y divide-border/70">
+          {summaryItems.map((item) => (
+            <div key={item.step} className="flex items-center justify-between gap-4 py-3 first:pt-0">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">{item.label}</p>
+                <p className="mt-1 font-black capitalize tracking-tight">{item.value}</p>
+              </div>
+              <UpdateButton step={item.step} />
             </div>
-            <UpdateButton step={item.step} />
-          </div>
-        ))}
+          ))}
         </div>
-      </div>
+      </CollapsibleCard>
 
-      <div className="rounded-3xl border bg-white/60 p-4">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Before you connect below</p>
-        <h3 className="mt-1 text-xl font-black tracking-tight">Other documents your lender may ask for</h3>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Income, savings, and credit are already covered earlier in your Backpack. These depend on which programs and
-          eligibility paths you're exploring — add what applies to you now, or bring the rest to your first conversation.
+      <CollapsibleCard
+        eyebrow="Next step"
+        title="Other documents your lender may ask for"
+        description={`Optional — first-time buyer proof, homebuyer education, and more.${otherDocumentsAddedCount > 0 ? ` ${otherDocumentsAddedCount} of ${OTHER_DOCUMENTS.length} added.` : ""}`}
+      >
+        <p className="mb-3 text-xs leading-5 text-muted-foreground">
+          Income, savings, and credit are already covered earlier in your Backpack. Add what applies to you now, or
+          bring the rest to your first conversation.
         </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {OTHER_DOCUMENTS.map((doc) => (
             <DocumentUploadCard
               key={doc.category}
@@ -468,85 +508,45 @@ export function SummaryNextStepsPage({
             />
           ))}
         </div>
-      </div>
+      </CollapsibleCard>
 
-      {!isGoodPosition ? (
-        <div className="space-y-3">
-          <div className="rounded-3xl border bg-white/75 p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Next steps</p>
-                <h3 className="mt-1 text-xl font-black tracking-tight">Find a lender</h3>
-              </div>
-              <button type="button" onClick={() => setQuestionnaireType("lender")} className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                Show questionnaire
-              </button>
-            </div>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Get a written pre-approval and confirm they work with your chosen program.</p>
-            <div className="mt-4 divide-y divide-border/70">
-              <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Lender options to contact</p>
-                <button type="button" onClick={onFindLender} className="text-xs font-bold text-primary underline-offset-4 hover:underline">See all</button>
-              </div>
-              {lenderContacts.map((contact) => <ContactCard key={contact.id} contact={contact} compact />)}
-            </div>
-          </div>
-
-          <div className="rounded-3xl border bg-white/75 p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Next steps</p>
-                <h3 className="mt-1 text-xl font-black tracking-tight">Find a realtor</h3>
-              </div>
-              <button type="button" onClick={() => setQuestionnaireType("realtor")} className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                Show questionnaire
-              </button>
-            </div>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Choose one who knows your area and first-time buyer programs.</p>
-            <div className="mt-4 divide-y divide-border/70">
-              <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Realtor options to contact</p>
-                <button type="button" onClick={onFindRealtor} className="text-xs font-bold text-primary underline-offset-4 hover:underline">See all</button>
-              </div>
-              {realtorContacts.map((contact) => <ContactCard key={contact.id} contact={contact} compact />)}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="rounded-3xl border bg-white/50 p-4">
-          <button
-            type="button"
-            onClick={() => setShowBrowseOptions((current) => !current)}
-            className="flex w-full items-center justify-between gap-3 text-left"
-          >
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Prefer to browse on your own?</p>
-              <p className="mt-1 text-sm text-muted-foreground">You can still explore independent lenders and realtors instead of IDF.</p>
-            </div>
-            <span className="shrink-0 text-xs font-bold text-muted-foreground underline-offset-4 hover:underline">
-              {showBrowseOptions ? "Hide" : "Show options"}
-            </span>
+      <CollapsibleCard
+        eyebrow="Next step"
+        title="Find a lender"
+        description="Prefer an independent lender instead of IDF? Get a written pre-approval and confirm they work with your chosen program."
+      >
+        <div className="flex justify-end pb-2">
+          <button type="button" onClick={() => setQuestionnaireType("lender")} className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            Show questionnaire
           </button>
-          {showBrowseOptions ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={onFindLender}
-                className="rounded-full bg-secondary px-3.5 py-2 text-xs font-bold text-secondary-foreground transition hover:bg-secondary/80"
-              >
-                Browse lenders
-              </button>
-              <button
-                type="button"
-                onClick={onFindRealtor}
-                className="rounded-full bg-secondary px-3.5 py-2 text-xs font-bold text-secondary-foreground transition hover:bg-secondary/80"
-              >
-                Browse realtors
-              </button>
-            </div>
-          ) : null}
         </div>
-      )}
+        <div className="divide-y divide-border/70">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Lender options to contact</p>
+            <button type="button" onClick={onFindLender} className="text-xs font-bold text-primary underline-offset-4 hover:underline">See all</button>
+          </div>
+          {lenderContacts.map((contact) => <ContactCard key={contact.id} contact={contact} compact />)}
+        </div>
+      </CollapsibleCard>
+
+      <CollapsibleCard
+        eyebrow="Next step"
+        title="Find a realtor"
+        description="Want your own realtor too? Choose one who knows your area and first-time buyer programs."
+      >
+        <div className="flex justify-end pb-2">
+          <button type="button" onClick={() => setQuestionnaireType("realtor")} className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            Show questionnaire
+          </button>
+        </div>
+        <div className="divide-y divide-border/70">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Realtor options to contact</p>
+            <button type="button" onClick={onFindRealtor} className="text-xs font-bold text-primary underline-offset-4 hover:underline">See all</button>
+          </div>
+          {realtorContacts.map((contact) => <ContactCard key={contact.id} contact={contact} compact />)}
+        </div>
+      </CollapsibleCard>
 
       {questionnaireModal && typeof document !== "undefined" ? createPortal(questionnaireModal, document.body) : null}
       {showIdfHandoff && typeof document !== "undefined"
@@ -606,10 +606,7 @@ export function SummaryNextStepsPage({
                     <div className="space-y-4 p-5">
                       <div className="flex items-start gap-2.5 rounded-2xl bg-[#12233f]/5 p-3">
                         <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[#12233f]" aria-hidden="true" />
-                        <p className="text-xs leading-5 text-[#12233f]">
-                          Most applicants spend 15–20 minutes here. Because your Backpack already covers this, it's
-                          pre-filled below — expect about 2 minutes.
-                        </p>
+                        <p className="text-xs leading-5 text-[#12233f]">{idfCopy.timeline}</p>
                       </div>
 
                       <div>
