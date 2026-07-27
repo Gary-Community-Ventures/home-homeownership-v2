@@ -1,6 +1,7 @@
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowRight, Building2, Check, CheckCircle2, Clock, Printer, Send, X } from "lucide-react";
+import { Building2, Check, CheckCircle2, ChevronDown, Clock, Printer, Send, X } from "lucide-react";
 import { ContactCard } from "@/components/home/ContactCard";
 import { WalkingPersonSvg } from "@/components/home/HomeVisuals";
 import { DocumentUploadCard } from "@/components/home/DocumentUploadCard";
@@ -194,9 +195,7 @@ export function SummaryNextStepsPage({
 }) {
   const [questionnaireType, setQuestionnaireType] = useState<"lender" | "realtor" | null>(null);
   const [showIdfHandoff, setShowIdfHandoff] = useState(false);
-  const [showDocumentsChecklist, setShowDocumentsChecklist] = useState(false);
   const [idfSubmitted, setIdfSubmitted] = useState(false);
-  const [showBrowseOptions, setShowBrowseOptions] = useState(false);
   const program = getAssistanceProgram(answers.assistanceProgram);
   const selectedAffordableProgram = result.selectedAffordablePrograms[0];
   const bedroomsLabel = answers.bedrooms === 0 ? "empty lot" : `${answers.bedrooms} bedroom${answers.bedrooms === 1 ? "" : "s"}`;
@@ -265,6 +264,41 @@ export function SummaryNextStepsPage({
     );
   }
 
+  function CollapsibleCard({
+    eyebrow,
+    title,
+    description,
+    defaultExpanded = false,
+    children,
+  }: {
+    eyebrow: string;
+    title: string;
+    description?: string;
+    defaultExpanded?: boolean;
+    children: ReactNode;
+  }) {
+    const [expanded, setExpanded] = useState(defaultExpanded);
+
+    return (
+      <div className="rounded-3xl border bg-white/60 p-4">
+        <button
+          type="button"
+          onClick={() => setExpanded((current) => !current)}
+          className="flex w-full items-start justify-between gap-3 text-left"
+          aria-expanded={expanded}
+        >
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">{eyebrow}</p>
+            <h3 className="mt-1 text-base font-black tracking-tight">{title}</h3>
+            {description ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p> : null}
+          </div>
+          <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden="true" />
+        </button>
+        {expanded ? <div className="mt-4">{children}</div> : null}
+      </div>
+    );
+  }
+
   function ProgressBar({ label, value, currentAmount, targetAmount, description }: { label: string; value: number; currentAmount: string; targetAmount: string; description: string }) {
     return (
       <div className="rounded-3xl border bg-white/75 p-4">
@@ -327,51 +361,6 @@ export function SummaryNextStepsPage({
     </div>
   ) : null;
 
-  const documentsChecklistModal = showDocumentsChecklist ? (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-3" role="dialog" aria-modal="true" aria-labelledby="documents-checklist-title">
-      <button type="button" className="absolute inset-0 cursor-default" onClick={() => setShowDocumentsChecklist(false)} aria-label="Close checklist" />
-      <div className="relative flex max-h-[calc(100vh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border bg-white shadow-2xl">
-        <div className="flex items-start justify-between gap-4 border-b border-border/70 px-5 py-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Optional, before you connect</p>
-            <h3 id="documents-checklist-title" className="mt-1 text-xl font-black tracking-tight">Other documents your lender may ask for</h3>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              Income, savings, and credit are already covered earlier in your Backpack. These depend on which programs and
-              eligibility paths you're exploring — add what applies to you now, or bring the rest to your first conversation.
-            </p>
-          </div>
-          <button type="button" onClick={() => setShowDocumentsChecklist(false)} className="shrink-0 rounded-full p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground" aria-label="Close checklist">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="no-scrollbar overflow-y-auto px-5 py-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            {OTHER_DOCUMENTS.map((doc) => (
-              <DocumentUploadCard
-                key={doc.category}
-                category={doc.category}
-                title={doc.title}
-                verifiedTitle={doc.verifiedTitle}
-                description={doc.description}
-                verifiedDescription={doc.verifiedDescription}
-                uploadLabel={doc.uploadLabel}
-                documents={documents}
-                onUpload={onUploadDocuments}
-                onRemove={onRemoveDocument}
-                compact
-              />
-            ))}
-          </div>
-        </div>
-        <div className="border-t border-border/70 px-5 py-4">
-          <button type="button" onClick={() => setShowDocumentsChecklist(false)} className="w-full rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            Done
-          </button>
-        </div>
-      </div>
-    </div>
-  ) : null;
-
   return (
     <div className="space-y-4">
       <div className="space-y-3 rounded-3xl border border-primary/15 bg-gradient-to-br from-primary/10 to-white/85 p-4">
@@ -399,19 +388,23 @@ export function SummaryNextStepsPage({
       </div>
 
       {isGoodPosition ? (
-        <div className="rounded-3xl border-2 border-[#12233f]/15 bg-gradient-to-br from-[#12233f]/5 to-white/90 p-4">
-          <div className="flex items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#12233f] text-white shadow-md" aria-hidden="true">
-              <Building2 className="h-5 w-5" />
+        <div className="relative overflow-hidden rounded-3xl border-2 border-[#12233f]/25 bg-gradient-to-br from-[#12233f]/10 via-white/95 to-white p-5 shadow-[0_24px_80px_rgba(18,35,63,0.22)] sm:p-6">
+          <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#12233f] via-[#1d3a63] to-[#12233f]" aria-hidden="true" />
+          <span className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-[#12233f] px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-white">
+            Recommended next step
+          </span>
+          <div className="flex items-start gap-4">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#12233f] text-white shadow-lg" aria-hidden="true">
+              <Building2 className="h-7 w-7" />
             </span>
             <div className="min-w-0">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#12233f]">Your Backpack makes this fast</p>
-              <h3 className="mt-1 text-xl font-black tracking-tight">
+              <h3 className="mt-1 text-2xl font-black leading-tight tracking-tight">
                 Want to seek your pre-approval and automatically apply for down payment assistance?
               </h3>
             </div>
           </div>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          <p className="mt-4 text-sm leading-6 text-muted-foreground">
             Your Backpack already has your answers saved
             {verifiedDocuments.length > 0 ? ` and ${verifiedDocuments.length} document${verifiedDocuments.length === 1 ? "" : "s"} verified` : ""} —
             Impact Development Fund (IDF) can pull this instead of asking you to start from scratch.
@@ -426,7 +419,7 @@ export function SummaryNextStepsPage({
               setIdfSubmitted(false);
               setShowIdfHandoff(true);
             }}
-            className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#12233f] px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#193154] hover:shadow-lg"
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#12233f] px-6 py-3.5 text-base font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-[#193154] hover:shadow-xl"
           >
             Start with Impact Development Fund
             <Send className="h-4 w-4" aria-hidden="true" />
@@ -476,121 +469,87 @@ export function SummaryNextStepsPage({
         </div>
       </div>
 
-      <div className="rounded-3xl border bg-white/60 p-4">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Your answers</p>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">Tap Update on any answer to change it and see your readiness recalculate.</p>
-        <div className="mt-2 divide-y divide-border/70">
-        {summaryItems.map((item) => (
-          <div key={item.step} className="flex items-center justify-between gap-4 py-3">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">{item.label}</p>
-              <p className="mt-1 font-black capitalize tracking-tight">{item.value}</p>
+      <CollapsibleCard eyebrow="Your answers" title="Review or update what you entered" description="Tap Update on any answer to change it and see your readiness recalculate.">
+        <div className="divide-y divide-border/70">
+          {summaryItems.map((item) => (
+            <div key={item.step} className="flex items-center justify-between gap-4 py-3 first:pt-0">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">{item.label}</p>
+                <p className="mt-1 font-black capitalize tracking-tight">{item.value}</p>
+              </div>
+              <UpdateButton step={item.step} />
             </div>
-            <UpdateButton step={item.step} />
-          </div>
-        ))}
+          ))}
         </div>
-      </div>
+      </CollapsibleCard>
 
-      <button
-        type="button"
-        onClick={() => setShowDocumentsChecklist(true)}
-        className="flex w-full items-center justify-between gap-4 rounded-3xl border bg-white/60 p-4 text-left transition hover:border-primary/30 hover:bg-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      <CollapsibleCard
+        eyebrow="Next step"
+        title="Other documents your lender may ask for"
+        description={`Optional — first-time buyer proof, homebuyer education, and more.${otherDocumentsAddedCount > 0 ? ` ${otherDocumentsAddedCount} of ${OTHER_DOCUMENTS.length} added.` : ""}`}
       >
-        <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Next step</p>
-          <h3 className="mt-1 text-base font-black tracking-tight">Other documents your lender may ask for</h3>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Optional — first-time buyer proof, homebuyer education, and more.
-            {otherDocumentsAddedCount > 0 ? ` ${otherDocumentsAddedCount} of ${OTHER_DOCUMENTS.length} added.` : ""}
-          </p>
+        <p className="mb-3 text-xs leading-5 text-muted-foreground">
+          Income, savings, and credit are already covered earlier in your Backpack. Add what applies to you now, or
+          bring the rest to your first conversation.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {OTHER_DOCUMENTS.map((doc) => (
+            <DocumentUploadCard
+              key={doc.category}
+              category={doc.category}
+              title={doc.title}
+              verifiedTitle={doc.verifiedTitle}
+              description={doc.description}
+              verifiedDescription={doc.verifiedDescription}
+              uploadLabel={doc.uploadLabel}
+              documents={documents}
+              onUpload={onUploadDocuments}
+              onRemove={onRemoveDocument}
+              compact
+            />
+          ))}
         </div>
-        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-secondary px-3.5 py-2 text-xs font-bold text-secondary-foreground">
-          View checklist
-          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-        </span>
-      </button>
+      </CollapsibleCard>
 
-      {!isGoodPosition ? (
-        <div className="space-y-3">
-          <div className="rounded-3xl border bg-white/75 p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Next steps</p>
-                <h3 className="mt-1 text-xl font-black tracking-tight">Find a lender</h3>
-              </div>
-              <button type="button" onClick={() => setQuestionnaireType("lender")} className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                Show questionnaire
-              </button>
-            </div>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Get a written pre-approval and confirm they work with your chosen program.</p>
-            <div className="mt-4 divide-y divide-border/70">
-              <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Lender options to contact</p>
-                <button type="button" onClick={onFindLender} className="text-xs font-bold text-primary underline-offset-4 hover:underline">See all</button>
-              </div>
-              {lenderContacts.map((contact) => <ContactCard key={contact.id} contact={contact} compact />)}
-            </div>
-          </div>
-
-          <div className="rounded-3xl border bg-white/75 p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Next steps</p>
-                <h3 className="mt-1 text-xl font-black tracking-tight">Find a realtor</h3>
-              </div>
-              <button type="button" onClick={() => setQuestionnaireType("realtor")} className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                Show questionnaire
-              </button>
-            </div>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Choose one who knows your area and first-time buyer programs.</p>
-            <div className="mt-4 divide-y divide-border/70">
-              <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Realtor options to contact</p>
-                <button type="button" onClick={onFindRealtor} className="text-xs font-bold text-primary underline-offset-4 hover:underline">See all</button>
-              </div>
-              {realtorContacts.map((contact) => <ContactCard key={contact.id} contact={contact} compact />)}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="rounded-3xl border bg-white/50 p-4">
-          <button
-            type="button"
-            onClick={() => setShowBrowseOptions((current) => !current)}
-            className="flex w-full items-center justify-between gap-3 text-left"
-          >
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Prefer to browse on your own?</p>
-              <p className="mt-1 text-sm text-muted-foreground">You can still explore independent lenders and realtors instead of IDF.</p>
-            </div>
-            <span className="shrink-0 text-xs font-bold text-muted-foreground underline-offset-4 hover:underline">
-              {showBrowseOptions ? "Hide" : "Show options"}
-            </span>
+      <CollapsibleCard
+        eyebrow="Next step"
+        title="Find a lender"
+        description={isGoodPosition ? "Prefer an independent lender instead of IDF? Get a written pre-approval and confirm they work with your program." : "Get a written pre-approval and confirm they work with your chosen program."}
+      >
+        <div className="flex justify-end pb-2">
+          <button type="button" onClick={() => setQuestionnaireType("lender")} className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            Show questionnaire
           </button>
-          {showBrowseOptions ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={onFindLender}
-                className="rounded-full bg-secondary px-3.5 py-2 text-xs font-bold text-secondary-foreground transition hover:bg-secondary/80"
-              >
-                Browse lenders
-              </button>
-              <button
-                type="button"
-                onClick={onFindRealtor}
-                className="rounded-full bg-secondary px-3.5 py-2 text-xs font-bold text-secondary-foreground transition hover:bg-secondary/80"
-              >
-                Browse realtors
-              </button>
-            </div>
-          ) : null}
         </div>
-      )}
+        <div className="divide-y divide-border/70">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Lender options to contact</p>
+            <button type="button" onClick={onFindLender} className="text-xs font-bold text-primary underline-offset-4 hover:underline">See all</button>
+          </div>
+          {lenderContacts.map((contact) => <ContactCard key={contact.id} contact={contact} compact />)}
+        </div>
+      </CollapsibleCard>
+
+      <CollapsibleCard
+        eyebrow="Next step"
+        title="Find a realtor"
+        description={isGoodPosition ? "Want your own realtor too? Choose one who knows your area and first-time buyer programs." : "Choose one who knows your area and first-time buyer programs."}
+      >
+        <div className="flex justify-end pb-2">
+          <button type="button" onClick={() => setQuestionnaireType("realtor")} className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            Show questionnaire
+          </button>
+        </div>
+        <div className="divide-y divide-border/70">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Realtor options to contact</p>
+            <button type="button" onClick={onFindRealtor} className="text-xs font-bold text-primary underline-offset-4 hover:underline">See all</button>
+          </div>
+          {realtorContacts.map((contact) => <ContactCard key={contact.id} contact={contact} compact />)}
+        </div>
+      </CollapsibleCard>
 
       {questionnaireModal && typeof document !== "undefined" ? createPortal(questionnaireModal, document.body) : null}
-      {documentsChecklistModal && typeof document !== "undefined" ? createPortal(documentsChecklistModal, document.body) : null}
       {showIdfHandoff && typeof document !== "undefined"
         ? createPortal(
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-3" role="dialog" aria-modal="true" aria-labelledby="idf-title">
