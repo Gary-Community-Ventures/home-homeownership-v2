@@ -257,21 +257,11 @@ export function SummaryNextStepsPage({
     : isClose
       ? "You're getting close to buying this home"
       : "You're still getting ready to buy this home";
-  const readyAnswer = isReady
-    ? "Based on these estimates, buying this home looks realistic. The main step left is to confirm the numbers with a lender before making offers."
-    : isClose
-      ? "Not quite yet for this exact home — but you're within reach. Closing one gap below would get you there."
-      : "Not yet for this specific home. The estimates show a meaningful gap to close first, but you have a clear target to work toward.";
-  const limitingText = isReady
-    ? "Both your income and your savings are close to the targets for this home."
+  const biggestFactorText = isReady
+    ? "Both your income and savings are close to the targets — confirming these numbers with a lender is the main remaining step."
     : limitingFactor === "income"
-      ? `Monthly payment is the bigger hurdle. The estimated ${formatCurrency(result.monthlyPayment)}/mo is about ${formatCurrency(monthlyShortfall)}/mo above the ${paymentToIncomeTargetPercent}% of income lenders typically look for.`
-      : `Upfront cash is the bigger hurdle. After your savings, you'd still need about ${formatCurrency(cashStillNeeded)} for the down payment and closing costs.`;
-  const reachingTargetText = isReady
-    ? "Confirming these numbers with a lender is the main remaining step."
-    : limitingFactor === "income"
-      ? "Raising income, choosing a lower price, or a lower rate would bring the monthly payment into a sustainable range — the main thing lenders check."
-      : `Covering that ${formatCurrency(cashStillNeeded)} — through more savings or down payment assistance — would let you pay the down payment and closing costs without stretching.`;
+      ? `Monthly payment is the bigger hurdle — the estimated ${formatCurrency(result.monthlyPayment)}/mo is about ${formatCurrency(monthlyShortfall)}/mo above the ${paymentToIncomeTargetPercent}% of income lenders typically look for. Raising income, choosing a lower price, or a lower rate would close that gap.`
+      : `Upfront cash is the bigger hurdle — after your savings, you'd still need about ${formatCurrency(cashStillNeeded)} for the down payment and closing costs. More savings or down payment assistance would close that gap.`;
 
   function UpdateButton({ step }: { step: UpdateStepKey }) {
     return (
@@ -391,7 +381,6 @@ export function SummaryNextStepsPage({
             <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">{result.recommendation}</p>
           </div>
         </div>
-        <p className="text-sm leading-6 text-muted-foreground">{readyAnswer}</p>
         <p className="text-sm leading-6 text-muted-foreground">
           <span className="font-bold text-foreground">Why this score:</span> it blends two things — your income covers about{" "}
           <strong className="font-bold text-foreground">{incomeProgress}%</strong> of the estimated monthly payment, and your savings cover about{" "}
@@ -399,8 +388,7 @@ export function SummaryNextStepsPage({
         </p>
         <div className="rounded-2xl border border-primary/20 bg-white/70 p-3">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Biggest factor right now</p>
-          <p className="mt-1 text-sm leading-6 text-foreground">{limitingText}</p>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">{reachingTargetText}</p>
+          <p className="mt-1 text-sm leading-6 text-foreground">{biggestFactorText}</p>
         </div>
       </div>
 
