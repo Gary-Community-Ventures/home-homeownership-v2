@@ -227,14 +227,31 @@ export function SummaryNextStepsPage({
   const isClose = score >= 50 && score < 80;
   // The lower of the two readiness scores is the bigger constraint.
   const limitingFactor: "income" | "cash" = incomeProgress <= downPaymentProgress ? "income" : "cash";
-  // At 50%+ readiness, a warm handoff to a real lender partner is worth offering front and center;
-  // below that, exploring lenders/realtors independently is still the more honest next step.
-  const isGoodPosition = score >= 50;
   const verifiedDocuments = documents.filter((doc) => doc.status === "verified");
   const otherDocumentCategories = new Set(OTHER_DOCUMENTS.map((doc) => doc.category));
   const otherDocumentsAddedCount = new Set(documents.filter((doc) => otherDocumentCategories.has(doc.category)).map((doc) => doc.category)).size;
   const assistanceProgramLabel = selectedAffordableProgram ? selectedAffordableProgram.name : program.title;
   const isRequestingAssistance = Boolean(selectedAffordableProgram) || answers.assistanceProgram !== "none";
+  // The IDF handoff is offered to everyone, but how confidently we can promise a fast, seamless
+  // pre-qualification depends on how much of the Backpack is actually in place.
+  const idfReadinessTier: "ready" | "close" | "early" = isReady ? "ready" : isClose ? "close" : "early";
+  const idfCopy = {
+    ready: {
+      badge: "Recommended next step",
+      body: `Your Backpack already has everything Impact Development Fund (IDF) typically asks for${verifiedDocuments.length > 0 ? `, including ${verifiedDocuments.length} verified document${verifiedDocuments.length === 1 ? "" : "s"}` : ""} — pre-qualification from here should be fast and largely seamless.`,
+      timeline: "Most applications take 15–20 minutes. Yours takes about 2.",
+    },
+    close: {
+      badge: "Worth starting now",
+      body: `Your Backpack already covers most of what IDF needs${verifiedDocuments.length > 0 ? `, including ${verifiedDocuments.length} verified document${verifiedDocuments.length === 1 ? "" : "s"}` : ""} — pre-qualification should move noticeably faster than starting cold, even with a few details still to confirm.`,
+      timeline: "Most applications take 15–20 minutes. With what's already saved, yours should be quicker.",
+    },
+    early: {
+      badge: "Get started early",
+      body: "You're still early, but IDF can begin reviewing what's already in your Backpack today. The more you fill in and verify from here, the smoother pre-qualification gets.",
+      timeline: "Most applications take 15–20 minutes — worth starting now, even before every number is final.",
+    },
+  }[idfReadinessTier];
   const readinessHeadline = isReady
     ? "You look ready to buy this home"
     : isClose
@@ -387,45 +404,39 @@ export function SummaryNextStepsPage({
         </div>
       </div>
 
-      {isGoodPosition ? (
-        <div className="relative overflow-hidden rounded-3xl border-2 border-[#12233f]/25 bg-gradient-to-br from-[#12233f]/10 via-white/95 to-white p-5 shadow-[0_24px_80px_rgba(18,35,63,0.22)] sm:p-6">
-          <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#12233f] via-[#1d3a63] to-[#12233f]" aria-hidden="true" />
-          <span className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-[#12233f] px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-white">
-            Recommended next step
+      <div className="relative overflow-hidden rounded-3xl border-2 border-[#12233f]/25 bg-gradient-to-br from-[#12233f]/10 via-white/95 to-white p-5 shadow-[0_24px_80px_rgba(18,35,63,0.22)] sm:p-6">
+        <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#12233f] via-[#1d3a63] to-[#12233f]" aria-hidden="true" />
+        <span className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-[#12233f] px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-white">
+          {idfCopy.badge}
+        </span>
+        <div className="flex items-start gap-4">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#12233f] text-white shadow-lg" aria-hidden="true">
+            <Building2 className="h-7 w-7" />
           </span>
-          <div className="flex items-start gap-4">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#12233f] text-white shadow-lg" aria-hidden="true">
-              <Building2 className="h-7 w-7" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#12233f]">Your Backpack makes this fast</p>
-              <h3 className="mt-1 text-2xl font-black leading-tight tracking-tight">
-                Want to seek your pre-approval and automatically apply for down payment assistance?
-              </h3>
-            </div>
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#12233f]">Your Backpack makes this fast</p>
+            <h3 className="mt-1 text-2xl font-black leading-tight tracking-tight">
+              Want to seek your pre-approval and automatically apply for down payment assistance?
+            </h3>
           </div>
-          <p className="mt-4 text-sm leading-6 text-muted-foreground">
-            Your Backpack already has your answers saved
-            {verifiedDocuments.length > 0 ? ` and ${verifiedDocuments.length} document${verifiedDocuments.length === 1 ? "" : "s"} verified` : ""} —
-            Impact Development Fund (IDF) can pull this instead of asking you to start from scratch.
-          </p>
-          <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-bold text-[#12233f]">
-            <Clock className="h-4 w-4" aria-hidden="true" />
-            Most applications take 15–20 minutes. Yours takes about 2.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              setIdfSubmitted(false);
-              setShowIdfHandoff(true);
-            }}
-            className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#12233f] px-6 py-3.5 text-base font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-[#193154] hover:shadow-xl"
-          >
-            Start with Impact Development Fund
-            <Send className="h-4 w-4" aria-hidden="true" />
-          </button>
         </div>
-      ) : null}
+        <p className="mt-4 text-sm leading-6 text-muted-foreground">{idfCopy.body}</p>
+        <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-bold text-[#12233f]">
+          <Clock className="h-4 w-4" aria-hidden="true" />
+          {idfCopy.timeline}
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setIdfSubmitted(false);
+            setShowIdfHandoff(true);
+          }}
+          className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#12233f] px-6 py-3.5 text-base font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-[#193154] hover:shadow-xl"
+        >
+          Start with Impact Development Fund
+          <Send className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
 
       <div className="rounded-3xl border border-primary/15 bg-gradient-to-br from-white/85 to-primary/10 p-4">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">The home you're modeling</p>
@@ -514,7 +525,7 @@ export function SummaryNextStepsPage({
       <CollapsibleCard
         eyebrow="Next step"
         title="Find a lender"
-        description={isGoodPosition ? "Prefer an independent lender instead of IDF? Get a written pre-approval and confirm they work with your program." : "Get a written pre-approval and confirm they work with your chosen program."}
+        description="Prefer an independent lender instead of IDF? Get a written pre-approval and confirm they work with your chosen program."
       >
         <div className="flex justify-end pb-2">
           <button type="button" onClick={() => setQuestionnaireType("lender")} className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -533,7 +544,7 @@ export function SummaryNextStepsPage({
       <CollapsibleCard
         eyebrow="Next step"
         title="Find a realtor"
-        description={isGoodPosition ? "Want your own realtor too? Choose one who knows your area and first-time buyer programs." : "Choose one who knows your area and first-time buyer programs."}
+        description="Want your own realtor too? Choose one who knows your area and first-time buyer programs."
       >
         <div className="flex justify-end pb-2">
           <button type="button" onClick={() => setQuestionnaireType("realtor")} className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -607,10 +618,7 @@ export function SummaryNextStepsPage({
                     <div className="space-y-4 p-5">
                       <div className="flex items-start gap-2.5 rounded-2xl bg-[#12233f]/5 p-3">
                         <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[#12233f]" aria-hidden="true" />
-                        <p className="text-xs leading-5 text-[#12233f]">
-                          Most applicants spend 15–20 minutes here. Because your Backpack already covers this, it's
-                          pre-filled below — expect about 2 minutes.
-                        </p>
+                        <p className="text-xs leading-5 text-[#12233f]">{idfCopy.timeline}</p>
                       </div>
 
                       <div>
