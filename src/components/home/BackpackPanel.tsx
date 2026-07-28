@@ -48,7 +48,7 @@ export function BackpackPanel({
   const categoriesWithDocuments = Array.from(new Set(documents.map((doc) => doc.category)));
 
   return (
-    <div className="rounded-3xl border border-primary/15 bg-gradient-to-br from-primary/10 to-white/85 shadow-sm">
+    <div className="rounded-3xl border border-primary/15 bg-white shadow-sm">
       <button
         type="button"
         onClick={() => setExpanded((current) => !current)}
