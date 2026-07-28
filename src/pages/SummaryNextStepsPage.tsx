@@ -555,7 +555,12 @@ export function SummaryNextStepsPage({
               <button type="button" className="absolute inset-0 cursor-default" onClick={() => setShowIdfHandoff(false)} aria-label="Close" />
               <div className="relative flex max-h-[calc(100vh-1.5rem)] w-full max-w-xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
                 <div className="flex items-center gap-2 border-b bg-[#f3f1ea] px-4 py-2.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#e05d44]" aria-hidden="true" />
+                  <button
+                    type="button"
+                    onClick={() => setShowIdfHandoff(false)}
+                    className="h-2.5 w-2.5 rounded-full bg-[#e05d44] transition hover:brightness-90"
+                    aria-label="Close"
+                  />
                   <span className="h-2.5 w-2.5 rounded-full bg-[#e0b44d]" aria-hidden="true" />
                   <span className="h-2.5 w-2.5 rounded-full bg-[#4da35e]" aria-hidden="true" />
                   <span className="ml-2 truncate rounded-full bg-white px-3 py-1 text-[0.7rem] font-semibold text-muted-foreground shadow-inner">
@@ -628,10 +633,12 @@ export function SummaryNextStepsPage({
                             <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted-foreground">Credit</p>
                             <p className="mt-0.5 text-sm font-black tracking-tight">{getCreditScoreOption(answers.creditScore).range}</p>
                           </div>
-                          <div className="rounded-2xl border bg-muted/30 px-3 py-2 sm:col-span-2">
-                            <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted-foreground">Requesting</p>
-                            <p className="mt-0.5 text-sm font-black tracking-tight">{assistanceProgramLabel}</p>
-                          </div>
+                          {isRequestingAssistance ? (
+                            <div className="rounded-2xl border bg-muted/30 px-3 py-2 sm:col-span-2">
+                              <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted-foreground">Requesting</p>
+                              <p className="mt-0.5 text-sm font-black tracking-tight">{assistanceProgramLabel}</p>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
 
