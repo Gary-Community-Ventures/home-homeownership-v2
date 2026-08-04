@@ -58,7 +58,7 @@ type Question = {
   key: QuestionKey;
   eyebrow: string;
   title: string;
-  description: string;
+  description?: string;
   type: "location" | "currency" | "number" | "assistance";
   min?: number;
   max?: number;
@@ -713,7 +713,6 @@ const questions: Question[] = [
     key: "income",
     eyebrow: "Monthly budget",
     title: "What is your household income?",
-    description: "Enter it at whatever pay frequency is easiest.",
     type: "currency",
     min: 30000,
     max: 300000,
@@ -3227,9 +3226,11 @@ function App() {
                 <CardTitle className="text-2xl leading-tight sm:text-3xl">
                   {contactPicker ? `${contactPicker === "lender" ? "Lender" : "Realtor"} options to contact` : showSummary ? "Summary and next steps" : showExplanation ? "What that means" : showAssistanceProgramPicker ? "Choose a specific program" : currentQuestion.key === "savings" ? savingsHeadline : currentQuestion.title}
                 </CardTitle>
-                <CardDescription className="text-sm leading-6">
-                  {contactPicker ? "Use this list to compare contacts and decide who to follow up with." : showSummary ? "Review your choices, then connect with a lender and realtor to verify the plan." : showExplanation ? "Here is the simple takeaway from your last answer, plus a few resources to explore next." : showAssistanceProgramPicker ? "Now pick the program you want to model for this path." : currentQuestion.key === "savings" ? savingsSubhead : currentQuestion.description}
-                </CardDescription>
+                {contactPicker || showSummary || showAssistanceProgramPicker || currentQuestion.description ? (
+                  <CardDescription className="text-sm leading-6">
+                    {contactPicker ? "Use this list to compare contacts and decide who to follow up with." : showSummary ? "Review your choices, then connect with a lender and realtor to verify the plan." : showExplanation ? "Here is the simple takeaway from your last answer, plus a few resources to explore next." : showAssistanceProgramPicker ? "Now pick the program you want to model for this path." : currentQuestion.key === "savings" ? savingsSubhead : currentQuestion.description}
+                  </CardDescription>
+                ) : null}
               </>
             ) : null}
           </CardHeader>

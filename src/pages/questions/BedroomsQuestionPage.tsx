@@ -82,9 +82,9 @@ export function BedroomsQuestionPage({
                       <div>
                         <p className="font-black tracking-tight text-foreground">{location}</p>
                       </div>
-                      <span className={`h-4 w-4 rounded-full border-2 ${isModeled ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
+                      <span className={`h-4 w-4 shrink-0 rounded-full border-2 ${isModeled ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
                     </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs xl:grid-cols-1 2xl:grid-cols-2">
+                    <div className="mt-3 grid grid-cols-1 gap-2 text-xs">
                       <div className="rounded-2xl bg-white/80 p-2.5">
                         <p className="text-muted-foreground">Estimated price</p>
                         <p className="mt-1 whitespace-nowrap text-lg font-black leading-none tracking-tight text-foreground">{formatCurrency(estimate.estimatedPrice)}</p>
